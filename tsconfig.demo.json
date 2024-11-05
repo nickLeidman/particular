@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "demo/dev-demo",
+    "rootDir": "demo/dev-demo",
+    "noEmit": false
+  },
+  "include": ["demo/dev-demo/**/*"]
+}
