@@ -6,7 +6,7 @@ import { Vec2 } from '../vec2';
  *  */
 export class Engine {
   private canvas: HTMLCanvasElement;
-  readonly gl: WebGLRenderingContext;
+  readonly gl: WebGL2RenderingContext;
   private scenes: Scene[] = [];
   private lastTime = 0;
   public resolution: Vec2 = new Vec2(0, 0);
@@ -126,7 +126,6 @@ export class Engine {
       return program;
     }
 
-    console.log(this.gl.getProgramInfoLog(program));
     this.gl.deleteProgram(program);
     return null;
   }

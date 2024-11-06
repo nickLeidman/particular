@@ -1,48 +1,25 @@
 import type { Engine } from '../engine/engine';
 import { M3 } from '../m3';
-import { Particle } from '../particle/particle';
+import { M4 } from '../m4';
+import type { Particle } from '../particle/particle';
 import type { Vec2 } from '../vec2';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 
-export enum EmitterUniforms {
-  Resolution = 'u_resolution',
-  Time = 'u_time',
-  Gravity = 'u_gravity',
-  LocalOffset = 'u_localOffset',
-  Projection = 'u_projection',
-  Start = 'u_start',
-  Lifetime = 'u_lifetime',
-}
+const CAMERA_BINDING_POINT = 0;
+const PARTICLE_BINDING_POINT = 1;
 
 export class Emitter {
-  private readonly gl: WebGLRenderingContext;
-  private program: WebGLProgram | null = null;
-  private uniformLocations: Record<keyof typeof EmitterUniforms, WebGLUniformLocation | null> | undefined;
-  private gravity = 0;
-  private size = 24;
-  private startTime = performance.now();
-  private particleCount = 2_000;
+  private readonly gl: WebGL2RenderingContext;
+  private readonly program: WebGLProgram;
+  private particleBuffer: WebGLBuffer;
 
-  private batches: Particle[] = [];
+  private batches: { particle: Particle; data: Float32Array }[] = [];
 
   constructor(private engine: Engine) {
     this.engine = engine;
     this.gl = engine.gl;
 
-    window.addEventListener('click', () => {
-      this.batches.push(
-        new Particle({
-          lifeTime: 2000,
-        }),
-      );
-    });
-
-    this.initShaders();
-  }
-
-  // Create an emitter program.
-  initShaders() {
     const gl = this.gl;
     const vertexShader = this.engine.createShader(gl.VERTEX_SHADER, emitterVertexShader);
     const fragmentShader = this.engine.createShader(gl.FRAGMENT_SHADER, emitterFragmentShader);
@@ -53,64 +30,75 @@ export class Emitter {
 
     this.program = program;
 
-    this.uniformLocations = {
-      Resolution: gl.getUniformLocation(program, EmitterUniforms.Resolution),
-      Time: gl.getUniformLocation(program, EmitterUniforms.Time),
-      Gravity: gl.getUniformLocation(program, EmitterUniforms.Gravity),
-      LocalOffset: gl.getUniformLocation(program, EmitterUniforms.LocalOffset),
-      Projection: gl.getUniformLocation(program, EmitterUniforms.Projection),
-      Start: gl.getUniformLocation(program, EmitterUniforms.Start),
-      Lifetime: gl.getUniformLocation(program, EmitterUniforms.Lifetime),
-    };
+    const particleBuffer = this.gl.createBuffer();
+    if (!particleBuffer) {
+      throw new Error('Failed to create particleBuffer');
+    }
+    this.particleBuffer = particleBuffer;
+    this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Particle'), PARTICLE_BINDING_POINT);
+    this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, PARTICLE_BINDING_POINT, this.particleBuffer);
+    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 24 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
   }
 
-  update(deltaTime: number) {
-    if (!this.program || !this.uniformLocations) {
-      return;
-    }
+  emit(particle: Particle) {
+    const particleCenter = M4.translation(-(1 / 4), -(3 / 4), 0);
+    const particleBufferData = new Float32Array([
+      particle.startTime,
+      particle.lifeTime,
+      0, // current time
+      0, // size
+      0, // gravity x
+      0, // gravity y
+      0, // gravity z
+      0, // padding
+      ...particleCenter.toData(),
+    ]);
+
+    this.batches.push({ particle, data: particleBufferData });
+  }
+
+  update() {
     this.gl.useProgram(this.program);
     this.engine.resetViewport();
-    this.draw();
   }
 
   draw() {
-    if (!this.program || !this.uniformLocations) {
-      return;
-    }
+    const currentTime = performance.now();
     for (let index = 0; index < this.batches.length; index++) {
-      const startTime = this.batches[index].startTime;
-      const lifeTime = this.batches[index].lifeTime;
-      const currentTime = performance.now();
+      const particle = this.batches[index].particle;
+      const startTime = particle.startTime;
+      const lifeTime = particle.lifeTime;
       const elapsedTime = currentTime - startTime;
       if (elapsedTime > lifeTime) {
         // remove batch
         this.batches.splice(index, 1);
         continue;
       }
-      this.gl.uniform1fv(this.uniformLocations.Start, [startTime]);
-      this.gl.uniform1fv(this.uniformLocations.Time, [elapsedTime]);
-      this.gl.uniform1fv(this.uniformLocations.Lifetime, [lifeTime]);
-      this.gl.drawArrays(this.gl.TRIANGLES, 0, this.particleCount * 3);
+
+      this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);
+      this.batches[index].data[2] = currentTime;
+      this.batches[index].data[3] = particle.size;
+      this.gl.bufferData(this.gl.UNIFORM_BUFFER, this.batches[index].data, this.gl.DYNAMIC_DRAW);
+
+      this.gl.drawArrays(this.gl.TRIANGLES, 0, particle.count * 3);
     }
   }
 
-  setup(projection: M3, resolution: Vec2) {
-    if (!this.program || !this.uniformLocations) {
-      return;
-    }
+  setup(projection: M4, resolution: Vec2) {
     const gl = this.gl;
     gl.useProgram(this.program);
 
-    // gl.activeTexture(gl.TEXTURE0);  // Activate texture unit 0
-    // gl.bindTexture(gl.TEXTURE_2D, candyTexture);  // Bind the texture
-    // gl.uniform1i(u_textureLocation, 0);  // Set the sampler to use texture unit 0
+    const cameraBuffer = gl.createBuffer();
+    if (!cameraBuffer) {
+      throw new Error('Failed to create buffer');
+    }
+    const cameraReference = gl.getUniformBlockIndex(this.program, 'Camera');
+    gl.uniformBlockBinding(this.program, cameraReference, CAMERA_BINDING_POINT);
 
-    gl.uniform2f(this.uniformLocations.Resolution, resolution.x, resolution.y);
-    gl.uniform1fv(this.uniformLocations.Time, [this.startTime / 1000]);
-    gl.uniform2f(this.uniformLocations.Gravity, 0, this.gravity);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, CAMERA_BINDING_POINT, cameraBuffer);
 
-    const particleCenter = M3.translation(-this.size * (1 / 4), -this.size * (3 / 4));
-    gl.uniformMatrix3fv(this.uniformLocations.LocalOffset, false, particleCenter.value);
-    gl.uniformMatrix3fv(this.uniformLocations.Projection, false, projection.value);
+    const cameraData = new Float32Array([resolution.x, resolution.y, 0, 0, ...projection.toData()]);
+
+    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
   }
 }

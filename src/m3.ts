@@ -7,6 +7,20 @@ export class M3 {
     this.value = matrix;
   }
 
+  public toData(): number[] {
+    // add padding to the matrix after each 3 elements
+    return this.value.reduce((acc, curr, index) => {
+      if (index % 3 === 0 && index !== 0) {
+        acc.push(0);
+      }
+      acc.push(curr);
+      if (index === 8) {
+        acc.push(0);
+      }
+      return acc;
+    }, [] as number[]);
+  }
+
   static identity(): M3 {
     return new M3(1, 0, 0, 0, 1, 0, 0, 0, 1);
   }

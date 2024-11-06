@@ -1,4 +1,5 @@
 import { Particular } from '../../../src';
+import { Particle } from '../../../src/particle/particle';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
@@ -19,3 +20,13 @@ scene.add(emitter);
 engine.addScene(scene);
 
 engine.start();
+
+window.addEventListener('click', () => {
+  emitter.emit(
+    new Particle({
+      lifeTime: 2000,
+      count: 100 + Math.random() * 1000,
+      size: 24,
+    }),
+  );
+});

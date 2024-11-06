@@ -1,19 +1,21 @@
 #version 300 es
 
 precision mediump float;
-uniform vec2 u_resolution;
 
-uniform mat3 u_localOffset;
-uniform mat3 u_projection;
+layout(std140) uniform Camera {
+    vec2 resolution;
+    mat4 projection;
+};
 
-uniform vec2 u_gravity;         // Gravity
-uniform float u_time;           // Time
-uniform float u_lifetime;      // how long a particle should live
+layout(std140) uniform Particle {
+    float start;
+    float lifetime;
+    float time;
+    vec3 gravity;
+    mat4 model;
+};
 
-uniform float u_start;      // Time since last frame
-
-out vec4 v_color;           // Pass color to the fragment shader
-out vec2 v_texCoord;        // Pass texture coordinates to the fragment shader
+out vec4 v_color;// Pass color to the fragment shader
 
 float noise2d(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -23,74 +25,72 @@ void main() {
     int localIndex = int(gl_VertexID) % 3;
     int triangleIndex = int(gl_VertexID) / 3;
 
-    float age = u_time;
-    float relativeAge = age / u_lifetime;
-    float timeInSeconds = u_time / 1000.0;
+    float age = time - start;
+    float relativeAge = age / lifetime;
+    float ageInSeconds = age / 1000.0;
 
-    float a_scale = 1.0;
-    float a_angularVelocity = 0.0;
-    vec2 a_velocity = vec2(
-        noise2d(vec2(float(triangleIndex), u_start + 2.0)) * 2.0 - 1.0,
-        noise2d(vec2(float(triangleIndex), u_start + 3.0)) * 2.0 - 1.0
+    float a_scale = noise2d(vec2(float(triangleIndex), start + 0.0)) * 0.8 + 0.5;
+    float a_angularVelocity = (noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0) * 10.0;
+    vec3 velocity = vec3(
+    noise2d(vec2(float(triangleIndex), start + 2.0)) * 2.0 - 1.0,
+    noise2d(vec2(float(triangleIndex), start + 3.0)) * 2.0 - 1.0,
+    0.0
     ) * 3000.0;
-    vec2 particleOffset = vec2(
-        noise2d(vec2(float(triangleIndex), u_start)) * 2.0 - 1.0,
-        noise2d(vec2(float(triangleIndex), u_start + 1.0)) * 2.0 - 1.0
+    vec3 particleOffset = vec3(
+    noise2d(vec2(float(triangleIndex), start)) * 2.0 - 1.0,
+    noise2d(vec2(float(triangleIndex), start + 1.0)) * 2.0 - 1.0,
+    0.0
     );
-    vec2 offset = vec2(40.0, 40.0) * particleOffset;
-    vec2 a_position = vec2(0.0, 0.0);
+    vec3 offset = vec3(40.0, 40.0, 0.0) * particleOffset;
+    vec3 position = vec3(0.0, 0.0, 0.0);
     vec2 a_texCoord = vec2(0.0, 0.0);
     float opacity = 1.0 - (relativeAge * relativeAge);
     vec4 a_color = vec4(
-        noise2d(vec2(float(triangleIndex), u_start + 4.0)),
-        noise2d(vec2(float(triangleIndex), u_start + 5.0)),
-        noise2d(vec2(float(triangleIndex), u_start + 6.0)),
-        opacity
+    noise2d(vec2(float(triangleIndex), start + 4.0)),
+    noise2d(vec2(float(triangleIndex), start + 5.0)),
+    noise2d(vec2(float(triangleIndex), start + 6.0)),
+    opacity
     );
 
     if (localIndex == 0) {
-        a_position = vec2( 0.0, 0.0) + offset;
+        position = vec3(0.0, 0.0, 0.0) + offset;
     } else if (localIndex == 1) {
-        a_position = vec2(50.0, 0.0) + offset;
+        position = vec3(50.0, 0.0, 0.0) + offset;
     } else if (localIndex == 2) {
-        a_position = vec2(0.0, 50.0) + offset;
+        position = vec3(0.0, 50.0, 0.0) + offset;
     }
 
-    // Center the particle
-    vec2 position_centered = (u_localOffset * vec3(a_position, 1)).xy;
+    // Update the particle's position based on velocity and gravity
+    vec4 updatedPosition = vec4(velocity * ageInSeconds + 0.5 * gravity * ageInSeconds * ageInSeconds, 0.0);
 
     // Create a scale matrix
-    mat3 scaleMatrix = mat3(a_scale, 0, 0,
-    0, a_scale, 0,
-    0, 0, 1);
+    mat4 scaleMatrix = mat4(
+    a_scale, 0, 0, 0,
+    0, a_scale, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+    );
 
     // Rotate the local position based on angular velocity
-    float rotationAngle = a_angularVelocity * timeInSeconds;
+    float rotationAngle = a_angularVelocity * ageInSeconds;
 
-    // Create 2D rotation matrix
-    mat2 rotationMatrix = mat2(cos(rotationAngle), -sin(rotationAngle),
-    sin(rotationAngle), cos(rotationAngle));
+    // Create 3D rotation matrix
+    mat4 rotationMatrix = mat4(
+    cos(rotationAngle), -sin(rotationAngle), 0, 0,
+    sin(rotationAngle), cos(rotationAngle), 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+    );
 
-    mat3 particleTransform = u_localOffset * scaleMatrix * mat3(rotationMatrix);
-
-    // Apply the rotation to the local position
-    vec2 rotatedPosition = (particleTransform * vec3(position_centered, 1)).xy;
-
-    // Update the particle's position based on velocity and gravity
-    vec2 updatedPosition = rotatedPosition
-    + a_velocity * timeInSeconds
-    + 0.5 * u_gravity * u_time * timeInSeconds;
+    vec4 particlePosition = scaleMatrix * rotationMatrix * model * vec4(position, 1.0) + updatedPosition;
 
     // Apply the global transformation matrix (u_matrix)
-    vec2 finalPosition = (u_projection * vec3(updatedPosition, 1.0)).xy;
-    vec2 zeroToOne = finalPosition / u_resolution;
+    vec2 finalPosition = (projection * particlePosition).xy;
+    vec2 zeroToOne = finalPosition / resolution;
     vec2 zeroToTwo = zeroToOne * 2.0;
     vec2 clipSpace = zeroToTwo - 1.0;
 
     gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-
-    // Pass texture coordinates to fragment shader
-    v_texCoord = a_texCoord;
 
     v_color = a_color;
 }

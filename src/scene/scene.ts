@@ -1,6 +1,7 @@
 import type { Emitter } from '../emitter/emitter';
 import type { Engine } from '../engine/engine';
 import { M3 } from '../m3';
+import { M4 } from '../m4';
 
 export enum SceneUniforms {
   Resolution = 'u_resolution',
@@ -8,7 +9,7 @@ export enum SceneUniforms {
 }
 
 export class Scene {
-  private gl: WebGLRenderingContext;
+  private gl: WebGL2RenderingContext;
   private emitters: Emitter[] = [];
 
   constructor(private engine: Engine) {
@@ -16,14 +17,14 @@ export class Scene {
     this.gl = engine.gl;
   }
 
-  setup(callback?: (gl: WebGLRenderingContext) => void) {
+  setup(callback?: (gl: WebGL2RenderingContext) => void) {
     const gl = this.gl;
     const resolution = this.engine.resolution;
 
     this.engine.resetViewport();
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    const projection = M3.translation(resolution.x / 2, resolution.y / 2);
+    const projection = M4.translation(resolution.x / 2, resolution.y / 2, 0);
 
     for (const emitter of this.emitters) {
       emitter.setup(projection, resolution);
@@ -42,7 +43,7 @@ export class Scene {
     const gl = this.gl;
     gl.clear(gl.COLOR_BUFFER_BIT);
     for (const emitter of this.emitters) {
-      emitter.update(deltaTime);
+      emitter.update();
     }
     this.draw();
   }
