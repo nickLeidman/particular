@@ -7,26 +7,29 @@ const engine = new Particular.Engine(canvas);
 
 engine.setup((gl) => {
   console.log('WebGL is supported');
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  // gl.enable(gl.BLEND);
+  // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 });
 
-const scene = new Particular.Scene(engine);
+const scene = new Particular.Scene(engine, { perspective: 2000 });
+
+engine.addScene(scene);
 
 const emitter = new Particular.Emitter(engine);
 
 scene.add(emitter);
 
-engine.addScene(scene);
-
 engine.start();
 
-window.addEventListener('click', () => {
+window.addEventListener('click', (event) => {
   emitter.emit(
     new Particle({
       lifeTime: 2000,
-      count: 100 + Math.random() * 1000,
-      size: 24,
+      count: 1000 + Math.random() * 500,
+      // count: 1,
+      size: 60,
+      origin: { x: event.clientX * window.devicePixelRatio, y: event.clientY * window.devicePixelRatio },
+      v0: 2000,
     }),
   );
 });

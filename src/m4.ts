@@ -59,10 +59,35 @@ export class M4 {
   }
 
   static perspective(fieldOfViewInRadians: number, aspect: number, near: number, far: number): M4 {
-    const f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+    const f = 1.0 / Math.tan(fieldOfViewInRadians / 2);
     const rangeInv = 1.0 / (near - far);
 
-    return new M4(f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (near + far) * rangeInv, -1, 0, 0, near * far * rangeInv * 2, 0);
+    return new M4(f / aspect, 0, 0, 0, 0, -f, 0, 0, 0, 0, (near + far) * rangeInv, -1, 0, 0, near * far * rangeInv * 2, 0);
+  }
+
+  static orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): M4 {
+    const lr = 1.0 / (left - right);
+    const bt = 1.0 / (bottom - top);
+    const nf = 1.0 / (near - far);
+
+    return new M4(
+      -2.0 * lr,
+      0,
+      0,
+      0,
+      0,
+      -2.0 * bt,
+      0,
+      0,
+      0,
+      0,
+      2.0 * nf,
+      0,
+      (left + right) * lr,
+      (top + bottom) * bt,
+      (far + near) * nf,
+      1,
+    );
   }
 
   static multiply(a: Matrix4, b: Matrix4): Matrix4 {

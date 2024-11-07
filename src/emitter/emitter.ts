@@ -1,13 +1,11 @@
 import type { Engine } from '../engine/engine';
-import { M3 } from '../m3';
 import { M4 } from '../m4';
 import type { Particle } from '../particle/particle';
-import type { Vec2 } from '../vec2';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 
 const CAMERA_BINDING_POINT = 0;
-const PARTICLE_BINDING_POINT = 1;
+const EMITTER_BINDING_POINT = 1;
 
 export class Emitter {
   private readonly gl: WebGL2RenderingContext;
@@ -35,35 +33,35 @@ export class Emitter {
       throw new Error('Failed to create particleBuffer');
     }
     this.particleBuffer = particleBuffer;
-    this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Particle'), PARTICLE_BINDING_POINT);
-    this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, PARTICLE_BINDING_POINT, this.particleBuffer);
-    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 24 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
+    this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
+    this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
+    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 40 * Float32Array.BYTES_PER_ELEMENT, this.gl.STATIC_DRAW);
   }
 
   emit(particle: Particle) {
-    const particleCenter = M4.translation(-(1 / 4), -(3 / 4), 0);
+    // const particleCenter = M4.translation((1 / 4) * particle.size, (3 / 4) * particle.size, 0);
+    const particleCenter = M4.identity();
+    const world = M4.translation(particle.origin.x, particle.origin.y, 0);
     const particleBufferData = new Float32Array([
+      0, // gravity x
+      0, // gravity y
+      0, // gravity z
+      0, // v0
       particle.startTime,
       particle.lifeTime,
       0, // current time
       0, // size
-      0, // gravity x
-      0, // gravity y
-      0, // gravity z
-      0, // padding
+      ...world.toData(),
       ...particleCenter.toData(),
     ]);
 
     this.batches.push({ particle, data: particleBufferData });
   }
 
-  update() {
-    this.gl.useProgram(this.program);
-    this.engine.resetViewport();
-  }
-
   draw() {
+    this.gl.useProgram(this.program);
     const currentTime = performance.now();
+    this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);
     for (let index = 0; index < this.batches.length; index++) {
       const particle = this.batches[index].particle;
       const startTime = particle.startTime;
@@ -75,16 +73,16 @@ export class Emitter {
         continue;
       }
 
-      this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);
-      this.batches[index].data[2] = currentTime;
-      this.batches[index].data[3] = particle.size;
-      this.gl.bufferData(this.gl.UNIFORM_BUFFER, this.batches[index].data, this.gl.DYNAMIC_DRAW);
+      this.batches[index].data[3] = particle.v0;
+      this.batches[index].data[6] = currentTime;
+      this.batches[index].data[7] = particle.size;
+      this.gl.bufferData(this.gl.UNIFORM_BUFFER, this.batches[index].data, this.gl.STATIC_DRAW);
 
       this.gl.drawArrays(this.gl.TRIANGLES, 0, particle.count * 3);
     }
   }
 
-  setup(projection: M4, resolution: Vec2) {
+  setup(projection: M4, view: M4) {
     const gl = this.gl;
     gl.useProgram(this.program);
 
@@ -97,8 +95,8 @@ export class Emitter {
 
     gl.bindBufferBase(gl.UNIFORM_BUFFER, CAMERA_BINDING_POINT, cameraBuffer);
 
-    const cameraData = new Float32Array([resolution.x, resolution.y, 0, 0, ...projection.toData()]);
+    const cameraData = new Float32Array([...projection.toData(), ...view.toData()]);
 
-    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.STATIC_DRAW);
   }
 }

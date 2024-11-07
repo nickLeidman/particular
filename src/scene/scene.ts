@@ -11,10 +11,17 @@ export enum SceneUniforms {
 export class Scene {
   private gl: WebGL2RenderingContext;
   private emitters: Emitter[] = [];
+  private readonly perspective: null | number;
 
-  constructor(private engine: Engine) {
+  constructor(
+    private engine: Engine,
+    options?: {
+      perspective?: number;
+    },
+  ) {
     this.engine = engine;
     this.gl = engine.gl;
+    this.perspective = options?.perspective ?? null;
   }
 
   setup(callback?: (gl: WebGL2RenderingContext) => void) {
@@ -24,10 +31,21 @@ export class Scene {
     this.engine.resetViewport();
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    const projection = M4.translation(resolution.x / 2, resolution.y / 2, 0);
+    let projection: M4;
+    let view = M4.identity();
+
+    if (this.perspective === null) {
+      projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, 2000);
+    } else {
+      // in case of perspective projection
+      const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
+      projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 2);
+      // move camera back the distance and move origin bact to 0x 0y
+      view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
+    }
 
     for (const emitter of this.emitters) {
-      emitter.setup(projection, resolution);
+      emitter.setup(projection, view);
     }
 
     callback?.(gl);
@@ -39,12 +57,10 @@ export class Scene {
   }
 
   // Update the scene.
-  update(deltaTime: number) {
+  update() {
     const gl = this.gl;
     gl.clear(gl.COLOR_BUFFER_BIT);
-    for (const emitter of this.emitters) {
-      emitter.update();
-    }
+    this.engine.resetViewport();
     this.draw();
   }
 

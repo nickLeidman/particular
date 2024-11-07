@@ -3,15 +3,18 @@
 precision mediump float;
 
 layout(std140) uniform Camera {
-    vec2 resolution;
     mat4 projection;
+    mat4 view;
 };
 
-layout(std140) uniform Particle {
+layout(std140) uniform Emitter {
+    vec3 gravity;
+    float v0;
     float start;
     float lifetime;
     float time;
-    vec3 gravity;
+    float size;
+    mat4 world;
     mat4 model;
 };
 
@@ -29,35 +32,26 @@ void main() {
     float relativeAge = age / lifetime;
     float ageInSeconds = age / 1000.0;
 
-    float a_scale = noise2d(vec2(float(triangleIndex), start + 0.0)) * 0.8 + 0.5;
-    float a_angularVelocity = (noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0) * 10.0;
+    float scale = noise2d(vec2(float(triangleIndex), start + 0.0)) * 0.8 + 0.5;
+    float angularVelocity = (noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0) * 10.0;
     vec3 velocity = vec3(
     noise2d(vec2(float(triangleIndex), start + 2.0)) * 2.0 - 1.0,
     noise2d(vec2(float(triangleIndex), start + 3.0)) * 2.0 - 1.0,
-    0.0
-    ) * 3000.0;
+    noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0
+    ) * v0;
     vec3 particleOffset = vec3(
     noise2d(vec2(float(triangleIndex), start)) * 2.0 - 1.0,
     noise2d(vec2(float(triangleIndex), start + 1.0)) * 2.0 - 1.0,
     0.0
     );
-    vec3 offset = vec3(40.0, 40.0, 0.0) * particleOffset;
-    vec3 position = vec3(0.0, 0.0, 0.0);
-    vec2 a_texCoord = vec2(0.0, 0.0);
-    float opacity = 1.0 - (relativeAge * relativeAge);
-    vec4 a_color = vec4(
-    noise2d(vec2(float(triangleIndex), start + 4.0)),
-    noise2d(vec2(float(triangleIndex), start + 5.0)),
-    noise2d(vec2(float(triangleIndex), start + 6.0)),
-    opacity
-    );
+    vec3 position = vec3(0.0, 0.0, 0.0) * particleOffset;
 
     if (localIndex == 0) {
-        position = vec3(0.0, 0.0, 0.0) + offset;
+        position += vec3(-1.0/4.0 * size, -1.0/4.0 * size, 0);
     } else if (localIndex == 1) {
-        position = vec3(50.0, 0.0, 0.0) + offset;
+        position += vec3(-1.0/4.0 * size, 3.0/4.0 * size, 0);
     } else if (localIndex == 2) {
-        position = vec3(0.0, 50.0, 0.0) + offset;
+        position += vec3(3.0/4.0 * size, -1.0/4.0 * size, 0);
     }
 
     // Update the particle's position based on velocity and gravity
@@ -65,14 +59,14 @@ void main() {
 
     // Create a scale matrix
     mat4 scaleMatrix = mat4(
-    a_scale, 0, 0, 0,
-    0, a_scale, 0, 0,
+    scale, 0, 0, 0,
+    0, scale, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1
     );
 
     // Rotate the local position based on angular velocity
-    float rotationAngle = a_angularVelocity * ageInSeconds;
+    float rotationAngle = angularVelocity * ageInSeconds;
 
     // Create 3D rotation matrix
     mat4 rotationMatrix = mat4(
@@ -82,15 +76,15 @@ void main() {
     0, 0, 0, 1
     );
 
-    vec4 particlePosition = scaleMatrix * rotationMatrix * model * vec4(position, 1.0) + updatedPosition;
+    vec4 particlePosition = rotationMatrix * model * scaleMatrix * vec4(position, 1.0) + updatedPosition;
 
-    // Apply the global transformation matrix (u_matrix)
-    vec2 finalPosition = (projection * particlePosition).xy;
-    vec2 zeroToOne = finalPosition / resolution;
-    vec2 zeroToTwo = zeroToOne * 2.0;
-    vec2 clipSpace = zeroToTwo - 1.0;
+    gl_Position = projection * view * world * particlePosition;
 
-    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-
-    v_color = a_color;
+    float opacity = 1.0 - (relativeAge * relativeAge);
+    v_color = vec4(
+    noise2d(vec2(float(triangleIndex), start + 4.0)),
+    noise2d(vec2(float(triangleIndex), start + 5.0)),
+    noise2d(vec2(float(triangleIndex), start + 6.0)),
+    opacity
+    );
 }
