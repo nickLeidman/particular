@@ -8,16 +8,16 @@ export class Engine {
   private canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
   private scenes: Scene[] = [];
-  private lastTime = 0;
   public resolution: Vec2 = new Vec2(0, 0);
-  private fullScreenQuad: WebGLBuffer | null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     if (!canvas) {
       throw new Error('Canvas is not defined');
     }
-    const gl = canvas.getContext('webgl2');
+    const gl = canvas.getContext('webgl2', {
+      // preserveDrawingBuffer: true,
+    });
     if (!gl) {
       throw new Error('WebGL is not supported');
     }
@@ -30,16 +30,6 @@ export class Engine {
         }
       });
     });
-    this.fullScreenQuad = this.createFullScreenQuad();
-  }
-
-  private createFullScreenQuad() {
-    const gl = this.gl;
-    const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-    return buffer;
   }
 
   setup(callback: (gl: WebGLRenderingContext) => void) {
@@ -68,14 +58,10 @@ export class Engine {
       scene.setup();
     }
 
-    const renderLoop = (currentTime: number) => {
-      const deltaTime = (currentTime - this.lastTime) / 1000;
-      this.lastTime = currentTime;
-
+    const renderLoop = () => {
       for (const scene of this.scenes) {
-        scene.update(deltaTime);
+        scene.update();
       }
-
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);

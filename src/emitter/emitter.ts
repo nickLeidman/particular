@@ -35,24 +35,27 @@ export class Emitter {
     this.particleBuffer = particleBuffer;
     this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
     this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
-    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 40 * Float32Array.BYTES_PER_ELEMENT, this.gl.STATIC_DRAW);
+    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
   }
 
   emit(particle: Particle) {
-    // const particleCenter = M4.translation((1 / 4) * particle.size, (3 / 4) * particle.size, 0);
-    const particleCenter = M4.identity();
+    const particleMatrix = M4.scaling(0.5, 2, 1);
     const world = M4.translation(particle.origin.x, particle.origin.y, 0);
     const particleBufferData = new Float32Array([
       0, // gravity x
-      0, // gravity y
+      2000, // gravity y
       0, // gravity z
       0, // v0
       particle.startTime,
       particle.lifeTime,
       0, // current time
       0, // size
+      0, // friction
+      0,
+      0,
+      0,
       ...world.toData(),
-      ...particleCenter.toData(),
+      ...particleMatrix.toData(),
     ]);
 
     this.batches.push({ particle, data: particleBufferData });
@@ -61,25 +64,32 @@ export class Emitter {
   draw() {
     this.gl.useProgram(this.program);
     const currentTime = performance.now();
-    this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);
+    const offset = 0;
     for (let index = 0; index < this.batches.length; index++) {
       const particle = this.batches[index].particle;
       const startTime = particle.startTime;
       const lifeTime = particle.lifeTime;
       const elapsedTime = currentTime - startTime;
+      const vertexCount = particle.count * 3;
+
       if (elapsedTime > lifeTime) {
         // remove batch
         this.batches.splice(index, 1);
+        index--;
         continue;
       }
 
       this.batches[index].data[3] = particle.v0;
       this.batches[index].data[6] = currentTime;
       this.batches[index].data[7] = particle.size;
-      this.gl.bufferData(this.gl.UNIFORM_BUFFER, this.batches[index].data, this.gl.STATIC_DRAW);
 
-      this.gl.drawArrays(this.gl.TRIANGLES, 0, particle.count * 3);
+      this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
+      this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);
+      this.gl.bufferData(this.gl.UNIFORM_BUFFER, this.batches[index].data, this.gl.DYNAMIC_DRAW);
+
+      this.gl.drawArrays(this.gl.TRIANGLES, offset, vertexCount);
     }
+    this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, null);
   }
 
   setup(projection: M4, view: M4) {
@@ -97,6 +107,6 @@ export class Emitter {
 
     const cameraData = new Float32Array([...projection.toData(), ...view.toData()]);
 
-    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.STATIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
   }
 }

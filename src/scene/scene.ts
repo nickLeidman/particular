@@ -1,12 +1,6 @@
 import type { Emitter } from '../emitter/emitter';
 import type { Engine } from '../engine/engine';
-import { M3 } from '../m3';
 import { M4 } from '../m4';
-
-export enum SceneUniforms {
-  Resolution = 'u_resolution',
-  Projection = 'u_projection',
-}
 
 export class Scene {
   private gl: WebGL2RenderingContext;
@@ -32,14 +26,16 @@ export class Scene {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     let projection: M4;
-    let view = M4.identity();
+    let view: M4;
 
     if (this.perspective === null) {
-      projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, 2000);
+      const longestDimension = Math.max(resolution.x, resolution.y);
+      projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, longestDimension * 2);
+      view = M4.translation(0, 0, -longestDimension);
     } else {
       // in case of perspective projection
       const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
-      projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 2);
+      projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 10);
       // move camera back the distance and move origin bact to 0x 0y
       view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
     }
@@ -58,9 +54,8 @@ export class Scene {
 
   // Update the scene.
   update() {
-    const gl = this.gl;
-    gl.clear(gl.COLOR_BUFFER_BIT);
     this.engine.resetViewport();
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.draw();
   }
 

@@ -1,23 +1,14 @@
-body {
+body,
+html {
   margin: 0;
   padding: 0;
 }
 
 canvas {
-  /*position: absolute;*/
+  position: absolute;
   top: 0;
   left: 0;
-  border: 1px solid black;
-}
-
-.debugDot {
-  position: absolute;
-  border-radius: 50%;
-  height: 2px;
-  width: 2px;
-  left: calc(1282px / 2);
-  top: calc(722px / 2);
-  background: red;
+  box-sizing: border-box;
 }
 
 button {
