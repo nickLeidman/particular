@@ -3,25 +3,25 @@ import { Particle } from '../../../src/particle/particle';
 
 const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
-const engine = new Particular.Engine(canvas);
-
-engine.setup((gl) => {
-  console.log('WebGL is supported');
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
+const particular = new Particular(canvas, {
+  beforeSetup: (gl) => {
+    console.log('WebGL is supported');
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  },
 });
 
-const scene = new Particular.Scene(engine, { perspective: 1000 });
+const scene = new Particular.Scene(particular, { perspective: 1000 });
 
-engine.addScene(scene);
+particular.addScene(scene);
 
-const emitter = new Particular.Emitter(engine);
+const emitter = new Particular.Emitter(particular);
 
 scene.add(emitter);
 
-engine.start();
+particular.start();
 
 document.addEventListener('click', (event) => {
   emitter.emit(

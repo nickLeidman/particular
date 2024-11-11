@@ -19,7 +19,7 @@ layout(std140) uniform Emitter {
     mat4 model;
 };
 
-out vec4 vColor; // Pass color to the fragment shader
+out vec4 vColor;// Pass color to the fragment shader
 out vec2 vPosition;
 
 float noise2d(vec2 co){
@@ -72,21 +72,34 @@ mat4 rotate(mat4 m, float angle, vec3 axis) {
     return m * rot;
 }
 
+vec3 randomAxis() {
+    return normalize(vec3(noise2d(vec2(0.0, 0.0)) * 2.0 - 1.0, noise2d(vec2(0.0, 1.0)) * 2.0 - 1.0, noise2d(vec2(0.0, 2.0)) * 2.0 - 1.0));
+}
+
 void main() {
     int localIndex = int(gl_VertexID) % 3;
     int triangleIndex = int(gl_VertexID) / 3;
 
     float age = time - start;
-    float relativeAge = age / lifetime;
+    float normalizedAge = age / lifetime;
     float ageInSeconds = age / 1000.0;
 
+    /*Scale*/
     float particleScale = noise2d(vec2(float(triangleIndex), start + 0.0)) * 0.8 + 0.5;
+    mat4 scaleMatrix = scale(mat4(1.0), vec3(vec2(particleScale), 0.0));
+
+    /*Rotation*/
+    float startAngle = noise2d(vec2(float(triangleIndex), start + 6.0)) * 2.0 * 3.14159;
     float angularVelocity = (noise2d(vec2(float(triangleIndex), start + 5.0)) * 2.0 - 1.0) * 5.0;
+    float rotationAngle = angularVelocity * ageInSeconds + startAngle;
+    mat4 rotationMatrix = rotate(mat4(1.0), rotationAngle, randomAxis());
+
+    /*Displacement*/
     vec3 velocity = vec3(
-    noise2d(vec2(float(triangleIndex), start + 2.0)) * 2.0 - 1.0,
-    noise2d(vec2(float(triangleIndex), start + 3.0)) * 2.0 - 1.0,
-    noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0
-    ) * v0;
+    (noise2d(vec2(float(triangleIndex), start + 2.0)) * 2.0 - 1.0) * v0,
+    (noise2d(vec2(float(triangleIndex), start + 3.0)) * 2.0 - 1.0) * v0,
+    (noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0) * v0 * 0.3
+    );
     vec3 particleOffset = vec3(
     noise2d(vec2(float(triangleIndex), start)) * 2.0 - 1.0,
     noise2d(vec2(float(triangleIndex), start + 1.0)) * 2.0 - 1.0,
@@ -105,13 +118,6 @@ void main() {
         vPosition = vec2(1.0, 0.0);
     }
 
-    // Create a scale matrix
-    mat4 scaleMatrix = scale(mat4(1.0), vec3(vec2(particleScale), 0.0));
-
-    // Rotate the local position based on angular velocity
-    float rotationAngle = angularVelocity * ageInSeconds;
-    mat4 rotationMatrix = rotate(mat4(1.0), rotationAngle, vec3(0.0, 0.0, 1.0));
-
     vec4 particlePosition = rotationMatrix * scaleMatrix * model * vec4(position, 1.0);
 
     // Update the particle's position based on velocity and gravity
@@ -121,7 +127,7 @@ void main() {
     vec4 newPosition = projection * view * world * particlePosition;
     gl_Position = newPosition;
 
-    float opacity = 1.0 - (relativeAge * relativeAge);
+    float opacity = 1.0 - (normalizedAge * normalizedAge);
     vColor = vec4(
     noise2d(vec2(float(triangleIndex), start + 4.0)),
     noise2d(vec2(float(triangleIndex), start + 5.0)),

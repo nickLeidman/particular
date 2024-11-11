@@ -1,4 +1,5 @@
-import type { Scene } from '../scene/scene';
+import { Emitter } from '../emitter/emitter';
+import { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
 
 /**
@@ -10,13 +11,17 @@ export class Engine {
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
 
-  constructor(canvas: HTMLCanvasElement) {
+  static Scene = Scene;
+  static Emitter = Emitter;
+
+  constructor(canvas: HTMLCanvasElement, options?: { beforeSetup?: (gl: WebGLRenderingContext) => void }) {
     this.canvas = canvas;
     if (!canvas) {
       throw new Error('Canvas is not defined');
     }
     const gl = canvas.getContext('webgl2', {
       // preserveDrawingBuffer: true,
+      // premultipliedAlpha: false,
     });
     if (!gl) {
       throw new Error('WebGL is not supported');
@@ -30,10 +35,12 @@ export class Engine {
         }
       });
     });
+
+    this.setup(options?.beforeSetup);
   }
 
-  setup(callback: (gl: WebGLRenderingContext) => void) {
-    callback(this.gl);
+  setup(callback?: (gl: WebGLRenderingContext) => void) {
+    callback?.(this.gl);
 
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -116,3 +123,5 @@ export class Engine {
     return null;
   }
 }
+
+export const Particular = Engine;
