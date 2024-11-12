@@ -90,7 +90,9 @@ export class M4 {
     );
   }
 
-  static multiply(a: Matrix4, b: Matrix4): Matrix4 {
+  static multiply(A: M4, B: M4): M4 {
+    const a = A.value;
+    const b = B.value;
     const a00 = a[0 * 4 + 0];
     const a01 = a[0 * 4 + 1];
     const a02 = a[0 * 4 + 2];
@@ -124,7 +126,7 @@ export class M4 {
     const b32 = b[3 * 4 + 2];
     const b33 = b[3 * 4 + 3];
 
-    return [
+    return new M4(
       b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
       b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
       b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
@@ -141,6 +143,6 @@ export class M4 {
       b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
       b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
       b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33,
-    ];
+    );
   }
 }

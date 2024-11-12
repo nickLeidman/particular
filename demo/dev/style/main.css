@@ -2,13 +2,41 @@ body,
 html {
   margin: 0;
   padding: 0;
+  /*system font*/
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-canvas {
+.grid {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 240px;
+}
+
+#root {
+  user-select: none;
+  position: relative;
+}
+
+#root > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.toolbar {
+  background: #f0f0f0;
+  padding: 10px;
   box-sizing: border-box;
+}
+
+.toolbarCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 button {

@@ -10,20 +10,27 @@ layout(std140) uniform Camera {
 layout(std140) uniform Emitter {
     vec3 gravity;
     float v0;
-    float start;
+    float batchHash;
     float lifetime;
-    float time;
+    float age;
     float size;
     float friction;
     mat4 world;
     mat4 model;
 };
 
+uniform sampler2D uNoiseTexture;
+
 out vec4 vColor;// Pass color to the fragment shader
 out vec2 vPosition;
 
 float noise2d(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    // assuming the texture is 256x256, get the mod of the coordinates
+    co = mod(co, 256.0);
+    // normalize the coordinates
+    co /= 256.0;
+    return texture(uNoiseTexture, co).x;
+//    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 mat4 translate(mat4 m, vec3 v) {
@@ -72,66 +79,77 @@ mat4 rotate(mat4 m, float angle, vec3 axis) {
     return m * rot;
 }
 
-vec3 randomAxis() {
-    return normalize(vec3(noise2d(vec2(0.0, 0.0)) * 2.0 - 1.0, noise2d(vec2(0.0, 1.0)) * 2.0 - 1.0, noise2d(vec2(0.0, 2.0)) * 2.0 - 1.0));
+float sampleNoise(float index, float offset) {
+    index += offset;
+    return noise2d(vec2(mod(index, 256.0), floor(index / 256.0)));
+}
+
+float sampleNoiseNormalized(float index, float offset) {
+    return sampleNoise(index, offset) * 2.0 - 1.0;
 }
 
 void main() {
     int localIndex = int(gl_VertexID) % 3;
-    int triangleIndex = int(gl_VertexID) / 3;
+    float triangleIndex = float(int(gl_VertexID) / 3);
 
-    float age = time - start;
     float normalizedAge = age / lifetime;
-    float ageInSeconds = age / 1000.0;
+
+    float triangleSize = size * 2.0;
 
     /*Scale*/
-    float particleScale = noise2d(vec2(float(triangleIndex), start + 0.0)) * 0.8 + 0.5;
-    mat4 scaleMatrix = scale(mat4(1.0), vec3(vec2(particleScale), 0.0));
+    float ageScale = 1.0 - (normalizedAge * normalizedAge * normalizedAge);
+    float particleScale = sampleNoise(triangleIndex, batchHash + 110.0) * 0.8 + 0.5;
+    mat4 scaleMatrix = scale(mat4(1.0), vec3(1.0, 1.0, 0.0) * ageScale);
 
     /*Rotation*/
-    float startAngle = noise2d(vec2(float(triangleIndex), start + 6.0)) * 2.0 * 3.14159;
-    float angularVelocity = (noise2d(vec2(float(triangleIndex), start + 5.0)) * 2.0 - 1.0) * 5.0;
-    float rotationAngle = angularVelocity * ageInSeconds + startAngle;
-    mat4 rotationMatrix = rotate(mat4(1.0), rotationAngle, randomAxis());
+    float startAngle = sampleNoiseNormalized(triangleIndex, batchHash + 10.0) * 2.0 * 3.14159;
+    float angularVelocity = sampleNoise(triangleIndex, batchHash + 20.0) * 20.0 + 5.0;
+    float rotationAngle = angularVelocity * age + startAngle;
+    mat4 rotationMatrix = rotate(mat4(1.0), rotationAngle, normalize(
+    vec3(
+    sampleNoiseNormalized(triangleIndex, batchHash + 80.0),
+    sampleNoiseNormalized(triangleIndex, batchHash + 90.0),
+    sampleNoiseNormalized(triangleIndex, batchHash + 100.0)
+    )
+    ));
 
     /*Displacement*/
     vec3 velocity = vec3(
-    (noise2d(vec2(float(triangleIndex), start + 2.0)) * 2.0 - 1.0) * v0,
-    (noise2d(vec2(float(triangleIndex), start + 3.0)) * 2.0 - 1.0) * v0,
-    (noise2d(vec2(float(triangleIndex), start + 4.0)) * 2.0 - 1.0) * v0 * 0.3
+    sampleNoiseNormalized(triangleIndex, batchHash + 30.0) * v0,
+    (sampleNoiseNormalized(triangleIndex, batchHash + 40.0) + -0.5) * v0,
+    sampleNoiseNormalized(triangleIndex, batchHash + 50.0) * v0 * 0.3
     );
     vec3 particleOffset = vec3(
-    noise2d(vec2(float(triangleIndex), start)) * 2.0 - 1.0,
-    noise2d(vec2(float(triangleIndex), start + 1.0)) * 2.0 - 1.0,
+    sampleNoiseNormalized(triangleIndex, batchHash + 60.0) * 2.0 - 1.0,
+    sampleNoiseNormalized(triangleIndex, batchHash + 70.0) * 2.0 - 1.0,
     0.0
     );
     vec3 position = vec3(0.0, 0.0, 0.0) * particleOffset;
     vPosition = vec2(0.0, 0.0);
 
     if (localIndex == 0) {
-        position += vec3(-1.0/4.0 * size, -1.0/4.0 * size, 0);
+        position += vec3(-1.0/4.0 * triangleSize, -1.0/4.0 * triangleSize, 0);
     } else if (localIndex == 1) {
-        position += vec3(-1.0/4.0 * size, 3.0/4.0 * size, 0);
+        position += vec3(-1.0/4.0 * triangleSize, 3.0/4.0 * triangleSize, 0);
         vPosition = vec2(0.0, 1.0);
     } else if (localIndex == 2) {
-        position += vec3(3.0/4.0 * size, -1.0/4.0 * size, 0);
+        position += vec3(3.0/4.0 * triangleSize, -1.0/4.0 * triangleSize, 0);
         vPosition = vec2(1.0, 0.0);
     }
 
     vec4 particlePosition = rotationMatrix * scaleMatrix * model * vec4(position, 1.0);
 
     // Update the particle's position based on velocity and gravity
-    vec4 displacement = vec4(velocity * ageInSeconds + 0.5 * gravity * ageInSeconds * ageInSeconds, 0.0);
+    vec4 displacement = vec4(velocity * age + 0.5 * gravity * age * age, 0.0);
     mat4 world = translate(world, displacement.xyz);
 
     vec4 newPosition = projection * view * world * particlePosition;
     gl_Position = newPosition;
 
-    float opacity = 1.0 - (normalizedAge * normalizedAge);
     vColor = vec4(
-    noise2d(vec2(float(triangleIndex), start + 4.0)),
-    noise2d(vec2(float(triangleIndex), start + 5.0)),
-    noise2d(vec2(float(triangleIndex), start + 6.0)),
-    opacity
+    1.0,
+    sampleNoise(triangleIndex, batchHash + 90.0),
+    sampleNoise(triangleIndex, batchHash + 100.0),
+    1.0
     );
 }

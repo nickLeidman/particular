@@ -1,4 +1,5 @@
 import { Emitter } from '../emitter/emitter';
+import { M4 } from '../m4';
 import { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
 
@@ -10,11 +11,18 @@ export class Engine {
   readonly gl: WebGL2RenderingContext;
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
+  public pixelRatio = window.devicePixelRatio;
+  public pixelScaleMatrix = M4.scaling(this.pixelRatio, this.pixelRatio, 1);
 
   static Scene = Scene;
   static Emitter = Emitter;
 
-  constructor(canvas: HTMLCanvasElement, options?: { beforeSetup?: (gl: WebGLRenderingContext) => void }) {
+  constructor(
+    private root: HTMLDivElement,
+    options?: { beforeSetup?: (gl: WebGLRenderingContext) => void },
+  ) {
+    const canvas = document.createElement('canvas');
+    this.root.appendChild(canvas);
     this.canvas = canvas;
     if (!canvas) {
       throw new Error('Canvas is not defined');
@@ -28,25 +36,23 @@ export class Engine {
     }
     this.gl = gl;
 
+    options?.beforeSetup?.(this.gl);
+
     window.addEventListener('resize', (event) => {
-      this.setup(() => {
-        for (const scene of this.scenes) {
-          scene.setup();
-        }
-      });
+      this.setup();
+      for (const scene of this.scenes) {
+        scene.setup();
+      }
     });
 
-    this.setup(options?.beforeSetup);
+    this.setup();
   }
 
-  setup(callback?: (gl: WebGLRenderingContext) => void) {
-    callback?.(this.gl);
-
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const ratio = window.devicePixelRatio;
-    const pixelWidth = width * ratio;
-    const pixelHeight = height * ratio;
+  setup() {
+    const width = this.root.clientWidth;
+    const height = this.root.clientHeight;
+    const pixelWidth = width * this.pixelRatio;
+    const pixelHeight = height * this.pixelRatio;
 
     this.resolution = new Vec2(pixelWidth, pixelHeight);
 
@@ -115,6 +121,7 @@ export class Engine {
     this.gl.linkProgram(program);
 
     const success = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
+    console.log(this.gl.getProgramInfoLog(program));
     if (success) {
       return program;
     }

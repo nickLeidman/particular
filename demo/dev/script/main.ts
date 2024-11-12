@@ -1,9 +1,9 @@
 import { Particular } from '../../../src';
 import { Particle } from '../../../src/particle/particle';
 
-const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+const container = document.getElementById('root') as HTMLDivElement;
 
-const particular = new Particular(canvas, {
+const particular = new Particular(container, {
   beforeSetup: (gl) => {
     console.log('WebGL is supported');
     gl.enable(gl.DEPTH_TEST);
@@ -23,15 +23,15 @@ scene.add(emitter);
 
 particular.start();
 
-document.addEventListener('click', (event) => {
+container.addEventListener('click', (event) => {
   emitter.emit(
     new Particle({
-      lifeTime: 2000,
-      count: 10000 + Math.random() * 500,
+      lifeTime: document.getElementById('lifeTime')?.valueAsNumber || 1000,
+      count: document.getElementById('count')?.valueAsNumber || 1000,
       // count: 1,
-      size: 60,
-      origin: { x: event.clientX * window.devicePixelRatio, y: event.clientY * window.devicePixelRatio },
-      v0: 2000,
+      size: document.getElementById('size')?.valueAsNumber || 40,
+      origin: { x: event.clientX, y: event.clientY },
+      v0: document.getElementById('v0')?.valueAsNumber || 3000,
     }),
   );
 });

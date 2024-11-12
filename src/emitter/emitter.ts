@@ -1,5 +1,6 @@
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
+import { Noise } from '../noise/noise';
 import type { Particle } from '../particle/particle';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
@@ -10,7 +11,8 @@ const EMITTER_BINDING_POINT = 1;
 export class Emitter {
   private readonly gl: WebGL2RenderingContext;
   private readonly program: WebGLProgram;
-  private particleBuffer: WebGLBuffer;
+  private readonly particleBuffer: WebGLBuffer;
+  private noise: WebGLTexture;
 
   private batches: { particle: Particle; data: Float32Array }[] = [];
 
@@ -18,9 +20,11 @@ export class Emitter {
     this.engine = engine;
     this.gl = engine.gl;
 
-    const gl = this.gl;
-    const vertexShader = this.engine.createShader(gl.VERTEX_SHADER, emitterVertexShader);
-    const fragmentShader = this.engine.createShader(gl.FRAGMENT_SHADER, emitterFragmentShader);
+    const noise = new Noise(engine, 256);
+    this.noise = noise.render();
+
+    const vertexShader = this.engine.createShader(this.gl.VERTEX_SHADER, emitterVertexShader);
+    const fragmentShader = this.engine.createShader(this.gl.FRAGMENT_SHADER, emitterFragmentShader);
     const program = this.engine.createProgramFromShaders(vertexShader, fragmentShader);
     if (!program) {
       throw new Error('Failed to create program');
@@ -39,19 +43,19 @@ export class Emitter {
   }
 
   emit(particle: Particle) {
-    const particleMatrix = M4.scaling(0.5, 2, 1);
-    const world = M4.translation(particle.origin.x, particle.origin.y, 0);
+    const particleMatrix = M4.scaling(0.25 * this.engine.pixelRatio, 1 * this.engine.pixelRatio, 1 * this.engine.pixelRatio);
+    const world = M4.translation(particle.origin.x * this.engine.pixelRatio, particle.origin.y * this.engine.pixelRatio, 0);
     const particleBufferData = new Float32Array([
       0, // gravity x
-      2000, // gravity y
+      3000, // gravity y
       0, // gravity z
       0, // v0
-      particle.startTime,
-      particle.lifeTime,
-      0, // current time
+      particle.startTime % (256 * 256), // batch id, mod 256^2
+      particle.lifeTime / 1000, // lifetime in seconds
+      0, // age in seconds
       0, // size
       0, // friction
-      0,
+      0, // noise sampler
       0,
       0,
       ...world.toData(),
@@ -65,14 +69,20 @@ export class Emitter {
     this.gl.useProgram(this.program);
     const currentTime = performance.now();
     const offset = 0;
+    // bind noise texture
+    const uNoiseTextureLocation = this.gl.getUniformLocation(this.program, 'uNoiseTexture');
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.noise);
+    this.gl.uniform1i(uNoiseTextureLocation, 0); // Assign texture unit 0
+
     for (let index = 0; index < this.batches.length; index++) {
       const particle = this.batches[index].particle;
       const startTime = particle.startTime;
       const lifeTime = particle.lifeTime;
-      const elapsedTime = currentTime - startTime;
+      const age = currentTime - startTime;
       const vertexCount = particle.count * 3;
 
-      if (elapsedTime > lifeTime) {
+      if (age > lifeTime) {
         // remove batch
         this.batches.splice(index, 1);
         index--;
@@ -80,8 +90,10 @@ export class Emitter {
       }
 
       this.batches[index].data[3] = particle.v0;
-      this.batches[index].data[6] = currentTime;
+      this.batches[index].data[6] = age / 1000;
       this.batches[index].data[7] = particle.size;
+      // this.batches[index].data[8] = particle.friction;
+      this.batches[index].data[9] = 0; // noise sampler
 
       this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
       this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);

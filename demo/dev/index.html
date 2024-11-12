@@ -6,7 +6,30 @@
     <link rel="stylesheet" href="./style/main.css" />
 </head>
 <body>
-<canvas id="canvas"></canvas>
+<div class="grid">
+    <div class="canvas" id="root"></div>
+    <div class="toolbar">
+        <div class="toolbarCard">
+            <div class="toolbarCard__title">Emitter</div>
+            <label>
+                <span>Lifetime</span>
+                <input id="lifeTime" type="range" min="0" max="3000" value="1500">
+            </label>
+            <label>
+                <span>Particle Count</span>
+                <input id="count" value="1500" type="number" step="100">
+            </label>
+            <label>
+                <span>Size</span>
+                <input id="size" value="40" type="number" step="10">
+            </label>
+            <label>
+                <span>Initial Speed (px/s)</span>
+                <input id="v0" value="2000" type="number" step="100">
+            </label>
+        </div>
+    </div>
+</div>
 <script type="module" src="./script/main.ts"></script>
 </body>
 </html>
