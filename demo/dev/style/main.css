@@ -16,6 +16,13 @@ html {
   grid-template-columns: 1fr 240px;
 }
 
+@media screen and (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 240px;
+  }
+}
+
 #root {
   user-select: none;
   position: relative;

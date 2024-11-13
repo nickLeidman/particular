@@ -54,7 +54,7 @@ export class Scene {
 
   // Update the scene.
   update() {
-    this.engine.resetViewport();
+    // this.engine.resetViewport();
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.draw();
   }

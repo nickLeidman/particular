@@ -97,7 +97,7 @@ void main() {
     float triangleSize = size * 2.0;
 
     /*Scale*/
-    float ageScale = 1.0 - (normalizedAge * normalizedAge * normalizedAge);
+    float ageScale = 1.0 - pow(normalizedAge, 3.0);
     float particleScale = sampleNoise(triangleIndex, batchHash + 110.0) * 0.8 + 0.5;
     mat4 scaleMatrix = scale(mat4(1.0), vec3(1.0, 1.0, 0.0) * ageScale);
 
@@ -140,7 +140,7 @@ void main() {
     vec4 particlePosition = rotationMatrix * scaleMatrix * model * vec4(position, 1.0);
 
     // Update the particle's position based on velocity and gravity
-    vec4 displacement = vec4(velocity * age + 0.5 * gravity * age * age, 0.0);
+    vec4 displacement = vec4(velocity * age + 0.5 * gravity * pow(age, 2.0), 0.0);
     mat4 world = translate(world, displacement.xyz);
 
     vec4 newPosition = projection * view * world * particlePosition;
