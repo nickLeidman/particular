@@ -12,7 +12,6 @@ export class Engine {
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
   public pixelRatio = window.devicePixelRatio;
-  public pixelScaleMatrix = M4.scaling(this.pixelRatio, this.pixelRatio, 1);
 
   static Scene = Scene;
   static Emitter = Emitter;
@@ -82,16 +81,6 @@ export class Engine {
 
   resetViewport() {
     this.gl.viewport(0, 0, this.resolution.x, this.resolution.y);
-  }
-
-  createFullscreenQuad(): WebGLBuffer {
-    const buffer = this.gl.createBuffer() as WebGLBuffer;
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-    const vertices = new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
-    // Unbind the buffer
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
-    return buffer;
   }
 
   createShader(type: number, source: string) {

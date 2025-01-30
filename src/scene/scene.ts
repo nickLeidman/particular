@@ -1,3 +1,4 @@
+import { Axis } from '../axis/axis';
 import type { Emitter } from '../emitter/emitter';
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
@@ -6,6 +7,7 @@ export class Scene {
   private gl: WebGL2RenderingContext;
   private emitters: Emitter[] = [];
   private readonly perspective: null | number;
+  private axis: Axis;
 
   constructor(
     private engine: Engine,
@@ -16,6 +18,7 @@ export class Scene {
     this.engine = engine;
     this.gl = engine.gl;
     this.perspective = options?.perspective ?? null;
+    this.axis = new Axis(this.engine);
   }
 
   setup(callback?: (gl: WebGL2RenderingContext) => void) {
@@ -44,6 +47,8 @@ export class Scene {
       emitter.setup(projection, view);
     }
 
+    this.axis.setup(projection, view);
+
     callback?.(gl);
   }
 
@@ -64,5 +69,6 @@ export class Scene {
     for (const emitter of this.emitters) {
       emitter.draw();
     }
+    // this.axis.draw();
   }
 }

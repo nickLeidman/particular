@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "build:demo": "tsc --project tsconfig.demo.json",
+    "build:demo": "tsc",
     "dev": "vite --host",
     "build:dev": "vite build"
   },

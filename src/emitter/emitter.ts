@@ -43,20 +43,20 @@ export class Emitter {
   }
 
   emit(particle: Particle) {
-    const particleMatrix = M4.scaling(0.25 * this.engine.pixelRatio, 1 * this.engine.pixelRatio, 1 * this.engine.pixelRatio);
+    const particleMatrix = M4.scaling(0.5 * this.engine.pixelRatio, 1 * this.engine.pixelRatio, 1 * this.engine.pixelRatio);
     const world = M4.translation(particle.origin.x * this.engine.pixelRatio, particle.origin.y * this.engine.pixelRatio, 0);
     const particleBufferData = new Float32Array([
-      0, // gravity x
-      3000, // gravity y
-      0, // gravity z
-      0, // v0
+      particle.gravity.x, // gravity x
+      particle.gravity.y, // gravity y
+      particle.gravity.z, // gravity z
+      particle.v0, // v0
       particle.startTime % (256 * 256), // batch id, mod 256^2
       particle.lifeTime / 1000, // lifetime in seconds
       0, // age in seconds
-      0, // size
-      0, // friction
-      0, // noise sampler
-      0,
+      particle.size, // size
+      particle.drag,
+      particle.angularDrag,
+      particle.spawnDuration / 1000, // spawn duration in seconds
       0,
       ...world.toData(),
       ...particleMatrix.toData(),
@@ -82,18 +82,14 @@ export class Emitter {
       const age = currentTime - startTime;
       const vertexCount = particle.count * 3;
 
-      if (age > lifeTime) {
+      if (age > lifeTime + particle.spawnDuration) {
         // remove batch
         this.batches.splice(index, 1);
         index--;
         continue;
       }
 
-      this.batches[index].data[3] = particle.v0;
       this.batches[index].data[6] = age / 1000;
-      this.batches[index].data[7] = particle.size;
-      // this.batches[index].data[8] = particle.friction;
-      this.batches[index].data[9] = 0; // noise sampler
 
       this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
       this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);

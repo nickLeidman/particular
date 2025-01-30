@@ -26,6 +26,9 @@ html {
 #root {
   user-select: none;
   position: relative;
+  background-image: url("../../public/image.png");
+  background-size: cover;
+  background-position: center;
 }
 
 #root > canvas {

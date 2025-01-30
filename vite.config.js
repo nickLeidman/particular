@@ -1,17 +1,15 @@
 import { defineConfig } from 'vite';
 import glsl from 'vite-plugin-glsl';
 
-
 export default defineConfig({
-  plugins: [
-    glsl()
-  ],
+  plugins: [glsl()],
   root: 'demo/dev',
   server: {
-    open: true
+    open: true,
   },
   build: {
     outDir: '../../dist/demo/dev',
-    emptyOutDir: true
-  }
+    emptyOutDir: true,
+  },
+  publicDir: 'demo/public',
 });
