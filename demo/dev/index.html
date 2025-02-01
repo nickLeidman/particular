@@ -12,26 +12,29 @@
     <div class="toolbar">
         <div class="toolbarCard">
             <h2 class="toolbarCard__title">Emitter</h2>
+            <button id="extractConfig">Extract Config</button>
             <h3>Particle</h3>
             <label>
                 <span>Lifetime (ms)</span>
-                <input id="lifeTime" type="range" min="0" max="5000" value="800">
+                <input id="lifeTime" type="number" value="400" step="100">
             </label>
             <label>
                 <span>Particle Count</span>
-                <input id="count" value="100" type="number" step="100">
+                <input id="count" value="70" type="number" step="50">
             </label>
             <label>
                 <span>Size (px)</span>
-                <input id="size" value="20" type="number" step="10">
+<!--                <input id="size" value="10" type="number" step="5">-->
+                <input id="size" value="20" type="number" step="5">
             </label>
             <label>
                 <span>Initial Speed (px/s)</span>
-                <input id="v0" value="5000" type="number" step="100">
+<!--                <input id="v0" value="2000" type="number" step="100">-->
+                <input id="v0" value="4000" type="number" step="100">
             </label>
             <label>
                 <span>Gravity Y (px/s^2)</span>
-                <input id="g" value="500" type="number" step="100">
+                <input id="g" value="1000" type="number" step="100">
             </label>
             <label>
                 <span>Spawn duration (ms)</span>
@@ -57,11 +60,12 @@
             </label>
             <label>
                 <span>Mass (kg)</span>
-                <input id="m" value="0.0005" type="number" step="0.0001">
+<!--                <input id="m" value="0.0004" type="number" step="0.0001">-->
+                <input id="m" value="0.0008" type="number" step="0.0001">
             </label>
             <label>
                 <span>Moment Of Inertia (kg*px^2)</span>
-                <input id="I" value="0.00001" type="number" step="0.00001">
+                <input id="I" value="0.00002" type="number" step="0.00001">
             </label>
         </div>
     </div>

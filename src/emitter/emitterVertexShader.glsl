@@ -11,11 +11,12 @@ layout(std140) uniform Camera {
 };
 
 layout(std140) uniform Emitter {
-    vec3 gravity;
-    float v0;
+    float batchAge;
     float batchHash;
     float lifetime;
-    float batchAge;
+    vec3 gravity;
+    vec3 v0;
+    vec3 velocityVariance;
     float size;
     float drag;
     float angularDrag;
@@ -80,10 +81,21 @@ void main() {
     ));
 
     /* Velocity */
+//    vec3 randomDirection = normalize(vec3(
+//        sampleNoiseNormalized(triangleIndex, batchHash + 30.0),
+//        sampleNoiseNormalized(triangleIndex, batchHash + 40.0),
+//        sampleNoiseNormalized(triangleIndex, batchHash + 50.0)
+//    ));
+//    // random ammount between -1 and 1
+//    float randomVariation = sampleNoiseNormalized(triangleIndex, batchHash + 60.0);
+//    vec3 absoluteVariance = v0 * velocityVariance * randomVariation;
+//
+//    vec3 velocity = (v0 + absoluteVariance) * randomDirection;
+
     vec3 velocity = vec3(
-    sampleNoiseNormalized(triangleIndex, batchHash + 30.0) * v0,
-    (sampleNoiseNormalized(triangleIndex, batchHash + 40.0) + -0.6) * v0,
-    sampleNoiseNormalized(triangleIndex, batchHash + 50.0) * v0 * 0.3
+        sampleNoiseNormalized(triangleIndex, batchHash + 30.0) * v0.x,
+        (sampleNoiseNormalized(triangleIndex, batchHash + 40.0) + -0.6) * v0.y,
+        sampleNoiseNormalized(triangleIndex, batchHash + 50.0) * v0.z * 0.3
     );
 
     /* Initial Position */
@@ -101,7 +113,7 @@ void main() {
 
     // bias spawn based on x y velocity
     vec3 spawnBias = normalize(velocity);
-    vec3 spawnDisplacement = spawnBias * 20.0;
+    vec3 spawnDisplacement = spawnBias * 40.0;
 
     /* Normal */
     vec3 rawNormal = vec3(0.0, 0.0, 1.0);
@@ -117,6 +129,20 @@ void main() {
 
     float brightness = 0.7 + 0.3 * sqrt(angleOfLight);
 
+    /* Glare */
+    float glare = 0.0;
+    // if angle is close to 180 degrees
+    float rotationThreshold = 0.9;
+    if (angleOfLight > rotationThreshold) {
+        float remainingAngle = 1.0 - angleOfLight;
+        // we calculate normalizedRemainingAngle to be from 0 to 1, where 1 is 180 degrees
+        float normalizedRemainingAngle = 1.0 - (remainingAngle / (1.0 - rotationThreshold));
+        float glareAmount = normalizedRemainingAngle * normalizedRemainingAngle * normalizedRemainingAngle;
+        glare = glareAmount * 4.0;
+    }
+
+    brightness += glare;
+
     vec4 particlePosition = rotationMatrix * scaleMatrix * model * vec4(position, 1.0);
 
     vec3 displacement = displaceInFluid(velocity, gravity, age, drag);
@@ -128,6 +154,6 @@ void main() {
 
     vColorSeed = sampleNoiseNormalized(triangleIndex, batchHash + 200.0);
     vBrightness = brightness;
-    vRipeness = clamp(age / (lifetime / 4.0), 0.7, 1.0);
+    vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
     vBorn = float(age >= 0.0 && ageScale > 0.0);
 }

@@ -1,5 +1,5 @@
 import { Emitter } from '../emitter/emitter';
-import { M4 } from '../m4';
+import { ParticleBatch } from '../particle/particleBatch';
 import { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
 
@@ -15,6 +15,9 @@ export class Engine {
 
   static Scene = Scene;
   static Emitter = Emitter;
+  static ParticleBatch = ParticleBatch;
+
+  private resolutionChangeCallbacks: Set<(resolution: Vec2) => void> = new Set();
 
   constructor(
     private root: HTMLDivElement,
@@ -42,7 +45,12 @@ export class Engine {
       for (const scene of this.scenes) {
         scene.setup();
       }
+      for (const callback of this.resolutionChangeCallbacks) {
+        callback(this.resolution);
+      }
     });
+
+    const ext = gl.getExtension('EXT_color_buffer_float');
 
     this.setup();
   }
@@ -59,6 +67,8 @@ export class Engine {
     this.canvas.height = pixelHeight;
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
+
+    this.gl.clearColor(0, 0, 0, 0);
   }
 
   addScene(scene: Scene) {
@@ -77,6 +87,10 @@ export class Engine {
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
+  }
+
+  setViewport(x: number, y: number, width: number, height: number) {
+    this.gl.viewport(x, y, width, height);
   }
 
   resetViewport() {
@@ -98,11 +112,13 @@ export class Engine {
     return shader;
   }
 
-  createProgramFromShaders(vertexShader: WebGLShader, fragmentShader: WebGLShader): WebGLProgram | null {
+  createProgramFromShaders(vertexShaderSource: string, fragmentShaderSource: string): WebGLProgram {
+    const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+    const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
     const program = this.gl.createProgram();
 
     if (!program) {
-      return program;
+      throw new Error('Failed to create program');
     }
 
     this.gl.attachShader(program, vertexShader);
@@ -110,13 +126,34 @@ export class Engine {
     this.gl.linkProgram(program);
 
     const success = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
-    console.log(this.gl.getProgramInfoLog(program));
-    if (success) {
-      return program;
+    if (!success) {
+      console.log(this.gl.getProgramInfoLog(program));
+      this.gl.deleteProgram(program);
+      throw new Error('Failed to link program');
     }
+    return program;
+  }
 
-    this.gl.deleteProgram(program);
-    return null;
+  onResolutionsChange(callback: (resolution: Vec2) => void) {
+    this.resolutionChangeCallbacks.add(callback);
+  }
+
+  attachRenderTarget(texture: WebGLTexture, framebuffer: WebGLFramebuffer | null) {
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, texture, 0);
+  }
+
+  resetRenderTarget() {
+    this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+  }
+
+  drawQuad() {
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+  }
+
+  clear() {
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
   }
 }
 

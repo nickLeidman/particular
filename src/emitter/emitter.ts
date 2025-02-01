@@ -1,12 +1,15 @@
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
-import type { Particle } from '../particle/particle';
+import type { ParticleBatch } from '../particle/particleBatch';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 
 const CAMERA_BINDING_POINT = 0;
 const EMITTER_BINDING_POINT = 1;
+
+const FREEZE_ON_MS = null;
+// const FREEZE_ON_MS = 200;
 
 export class Emitter {
   private readonly gl: WebGL2RenderingContext;
@@ -14,7 +17,7 @@ export class Emitter {
   private readonly particleBuffer: WebGLBuffer;
   private noise: WebGLTexture;
 
-  private batches: { particle: Particle; data: Float32Array }[] = [];
+  private batches: { particleBatch: ParticleBatch; data: Float32Array }[] = [];
 
   constructor(private engine: Engine) {
     this.engine = engine;
@@ -23,14 +26,7 @@ export class Emitter {
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
 
-    const vertexShader = this.engine.createShader(this.gl.VERTEX_SHADER, emitterVertexShader);
-    const fragmentShader = this.engine.createShader(this.gl.FRAGMENT_SHADER, emitterFragmentShader);
-    const program = this.engine.createProgramFromShaders(vertexShader, fragmentShader);
-    if (!program) {
-      throw new Error('Failed to create program');
-    }
-
-    this.program = program;
+    this.program = this.engine.createProgramFromShaders(emitterVertexShader, emitterFragmentShader);
 
     const particleBuffer = this.gl.createBuffer();
     if (!particleBuffer) {
@@ -42,27 +38,47 @@ export class Emitter {
     this.gl.bufferData(this.gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
   }
 
-  emit(particle: Particle) {
+  emit(particleBatch: ParticleBatch) {
     const particleMatrix = M4.scaling(0.5 * this.engine.pixelRatio, 1 * this.engine.pixelRatio, 1 * this.engine.pixelRatio);
-    const world = M4.translation(particle.origin.x * this.engine.pixelRatio, particle.origin.y * this.engine.pixelRatio, 0);
+    const world = M4.translation(particleBatch.origin.x * this.engine.pixelRatio, particleBatch.origin.y * this.engine.pixelRatio, 0);
+
+    // particle buffer data, structured using std140 layout
     const particleBufferData = new Float32Array([
-      particle.gravity.x, // gravity x
-      particle.gravity.y, // gravity y
-      particle.gravity.z, // gravity z
-      particle.v0, // v0
-      particle.startTime % (256 * 256), // batch id, mod 256^2
-      particle.lifeTime / 1000, // lifetime in seconds
-      0, // age in seconds
-      particle.size, // size
-      particle.drag,
-      particle.angularDrag,
-      particle.spawnDuration / 1000, // spawn duration in seconds
+      /* Time Block */
+      0, // age in seconds, filled in draw method
+      particleBatch.startTime % (256 * 256), // batch hash, mod 256^2
+      particleBatch.lifeTime / 1000, // lifetime in seconds
+      0, // padding
+
+      particleBatch.gravity.x, // gravity x
+      particleBatch.gravity.y, // gravity y
+      particleBatch.gravity.z, // gravity z
+      0, // padding
+
+      particleBatch.v0.x, // vx
+      particleBatch.v0.y, // vy
+      particleBatch.v0.z, // vz
+      0, // padding
+
+      particleBatch.velocityVariance.x, // velocity variance x
+      particleBatch.velocityVariance.y, // velocity variance y
+      particleBatch.velocityVariance.z, // velocity variance z
+      particleBatch.size, // size in pixels
+
+      particleBatch.drag,
+      particleBatch.angularDrag,
+      particleBatch.spawnDuration / 1000, // spawn duration in seconds
       0,
+
       ...world.toData(),
       ...particleMatrix.toData(),
     ]);
 
-    this.batches.push({ particle, data: particleBufferData });
+    if (particleBufferData.length % 4 !== 0) {
+      throw new Error('Particle buffer data length must be divisible by 4');
+    }
+
+    this.batches.push({ particleBatch, data: particleBufferData });
   }
 
   draw() {
@@ -76,20 +92,20 @@ export class Emitter {
     this.gl.uniform1i(uNoiseTextureLocation, 0); // Assign texture unit 0
 
     for (let index = 0; index < this.batches.length; index++) {
-      const particle = this.batches[index].particle;
-      const startTime = particle.startTime;
-      const lifeTime = particle.lifeTime;
+      const particleBatch = this.batches[index].particleBatch;
+      const startTime = particleBatch.startTime;
+      const lifeTime = particleBatch.lifeTime;
       const age = currentTime - startTime;
-      const vertexCount = particle.count * 3;
+      const vertexCount = particleBatch.count * 3;
 
-      if (age > lifeTime + particle.spawnDuration) {
+      if (age > lifeTime + particleBatch.spawnDuration && !FREEZE_ON_MS) {
         // remove batch
         this.batches.splice(index, 1);
         index--;
         continue;
       }
 
-      this.batches[index].data[6] = age / 1000;
+      this.batches[index].data[0] = (FREEZE_ON_MS ?? age) / 1000;
 
       this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
       this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, this.particleBuffer);

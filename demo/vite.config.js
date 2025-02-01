@@ -11,5 +11,5 @@ export default defineConfig({
     outDir: '../../dist/demo/dev',
     emptyOutDir: true,
   },
-  publicDir: 'demo/public',
+  publicDir: 'public',
 });
