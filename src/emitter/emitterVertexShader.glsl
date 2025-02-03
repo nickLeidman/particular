@@ -3,7 +3,7 @@
 #include ../shaderFragments/transform.frag
 #include ../shaderFragments/physics.frag
 
-precision mediump float;
+precision highp float;
 
 layout(std140) uniform Camera {
     mat4 projection;

@@ -7,11 +7,10 @@ import { Vec2 } from '../vec2';
  * Particular is a class that represents an object to handle ad draw particle effects on the screen.
  *  */
 export class Engine {
-  private canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
-  public pixelRatio = window.devicePixelRatio;
+  public pixelRatio = 2; //window.devicePixelRatio;
 
   static Scene = Scene;
   static Emitter = Emitter;
@@ -20,18 +19,12 @@ export class Engine {
   private resolutionChangeCallbacks: Set<(resolution: Vec2) => void> = new Set();
 
   constructor(
-    private root: HTMLDivElement,
+    private canvas: HTMLCanvasElement | OffscreenCanvas,
+    private size: Vec2,
     options?: { beforeSetup?: (gl: WebGLRenderingContext) => void },
   ) {
-    const canvas = document.createElement('canvas');
-    this.root.appendChild(canvas);
-    this.canvas = canvas;
-    if (!canvas) {
-      throw new Error('Canvas is not defined');
-    }
     const gl = canvas.getContext('webgl2', {
-      // preserveDrawingBuffer: true,
-      // premultipliedAlpha: false,
+      powerPreference: 'high-performance',
     });
     if (!gl) {
       throw new Error('WebGL is not supported');
@@ -40,15 +33,15 @@ export class Engine {
 
     options?.beforeSetup?.(this.gl);
 
-    window.addEventListener('resize', (event) => {
-      this.setup();
-      for (const scene of this.scenes) {
-        scene.setup();
-      }
-      for (const callback of this.resolutionChangeCallbacks) {
-        callback(this.resolution);
-      }
-    });
+    // window.addEventListener('resize', (event) => {
+    //   this.setup();
+    //   for (const scene of this.scenes) {
+    //     scene.setup();
+    //   }
+    //   for (const callback of this.resolutionChangeCallbacks) {
+    //     callback(this.resolution);
+    //   }
+    // });
 
     const ext = gl.getExtension('EXT_color_buffer_float');
 
@@ -56,8 +49,8 @@ export class Engine {
   }
 
   setup() {
-    const width = this.root.clientWidth;
-    const height = this.root.clientHeight;
+    const width = this.size.x;
+    const height = this.size.y;
     const pixelWidth = width * this.pixelRatio;
     const pixelHeight = height * this.pixelRatio;
 
@@ -65,8 +58,8 @@ export class Engine {
 
     this.canvas.width = pixelWidth;
     this.canvas.height = pixelHeight;
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+    // this.canvas.style.width = `${width}px`;
+    // this.canvas.style.height = `${height}px`;
 
     this.gl.clearColor(0, 0, 0, 0);
   }

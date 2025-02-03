@@ -1,6 +1,6 @@
 #version 300 es
 
-precision mediump float;
+precision highp float;
 in float vColorSeed;
 in vec2 vPosition;
 in float vBorn;

@@ -3,7 +3,7 @@ import type { Emitter } from '../emitter/emitter';
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
 import textureFragmentShader from '../textureRenderer/textureFragmentShader.glsl';
-import { HighPassShader, TextureRenderer } from '../textureRenderer/textureRenderer';
+import { GaussianBlurShader, HighPassShader, TextureRenderer } from '../textureRenderer/textureRenderer';
 
 export class Scene {
   private gl: WebGL2RenderingContext;
@@ -16,7 +16,7 @@ export class Scene {
   private effectFrameTextureB: WebGLTexture;
   private effectFrameBufferB: WebGLFramebuffer;
   private HighPassShader: HighPassShader;
-  private BlurShader: DownsampleBlur;
+  private BlurShader: GaussianBlurShader;
 
   private comitter: TextureRenderer;
   // private effectApplyShader: TextureRenderer;
@@ -42,7 +42,7 @@ export class Scene {
     /* Setup new texture renderer */
     this.HighPassShader = new HighPassShader(this.engine, { highPassThreshold: 0.95 });
     // this.BlurShader = new GaussianBlurShader(this.engine, { radius: 3.5 });
-    this.BlurShader = new DownsampleBlur(this.engine);
+    this.BlurShader = new GaussianBlurShader(this.engine, { radius: 3.5 });
 
     this.comitter = new TextureRenderer(this.engine, textureFragmentShader);
 
@@ -159,7 +159,7 @@ export class Scene {
     // Blur the high pass result, using effectFrameTextureA as input
     this.engine.attachRenderTarget(this.effectFrameTextureB, this.effectFrameBufferB);
     this.engine.clear();
-    this.BlurShader.draw(this.effectFrameTextureA, this.effectFrameTextureB, this.effectFrameBufferB);
+    this.BlurShader.draw(this.effectFrameTextureA); //, this.effectFrameTextureB, this.effectFrameBufferB);
 
     // commit result to frame buffer
     gl.enable(gl.BLEND);
@@ -170,7 +170,6 @@ export class Scene {
   }
 
   commit() {
-    this.engine.attachRenderTarget(this.sceneFrameTexture, null);
     this.comitter.draw(this.sceneFrameTexture);
   }
 }

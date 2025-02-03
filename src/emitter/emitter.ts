@@ -102,6 +102,10 @@ export class Emitter {
         // remove batch
         this.batches.splice(index, 1);
         index--;
+        // this.batches[index].data[0] = 0;
+        // this.batches[index].particleBatch.startTime = performance.now() % (256 * 256);
+        // this.batches[index].data[1] = this.batches[index].particleBatch.startTime;
+
         continue;
       }
 

@@ -1,4 +1,6 @@
-import { Particular } from '../../../src';
+import type { Particular } from '../../../src';
+import { Vec2 } from '../../../src/vec2';
+import MyWorker from '../worker/test?worker';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
@@ -37,26 +39,43 @@ extractButton.addEventListener('click', () => {
 /* Particular */
 
 const container = document.getElementById('root') as HTMLDivElement;
+const canvas = document.createElement('canvas');
+container.appendChild(canvas);
 
-const particular = new Particular(container, {
-  beforeSetup: (gl) => {
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-    // gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  },
+/* New test ts worker */
+
+const worker = new MyWorker() as Worker;
+
+// listen for console-log events
+
+worker.addEventListener('message', (event) => {
+  console.log(event.data);
 });
 
-const scene = new Particular.Scene(particular);
-
-particular.addScene(scene);
-
-const emitter = new Particular.Emitter(particular);
-
-scene.add(emitter);
-
-particular.start();
+if (canvas.transferControlToOffscreen) {
+  const offscreen = canvas.transferControlToOffscreen();
+  worker.postMessage(
+    {
+      name: 'init',
+      canvas: offscreen,
+      size: { x: container.clientWidth, y: container.clientHeight },
+    },
+    [offscreen],
+  ); // Transfer control
+} else {
+  console.error('OffscreenCanvas is not supported in this browser.');
+}
 
 container.addEventListener('click', (event) => {
-  emitter.emit(new Particular.ParticleBatch(compileConfig(event.clientX, event.clientY)));
+  worker.postMessage({
+    name: 'emit',
+    config: compileConfig(event.clientX, event.clientY),
+  });
 });
+
+// setInterval(() => {
+worker.postMessage({
+  name: 'emit',
+  config: compileConfig(Math.random() * (container.clientWidth / 2), Math.random() * (container.clientHeight / 2)),
+});
+// }, 1000);
