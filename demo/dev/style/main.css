@@ -29,8 +29,9 @@ html {
 #root {
   user-select: none;
   position: relative;
-  /*background-image: url("../../public/image.png");*/
-  background-color: royalblue;
+  background-image: url("../../public/image.png");
+  /*background-color: black;*/
+  /*background-color: royalblue;*/
   background-size: cover;
   background-position: center;
 }
@@ -39,6 +40,8 @@ html {
   position: absolute;
   top: 0;
   left: 0;
+  transform: scale(0.5);
+  transform-origin: top left;
 }
 
 .toolbar {

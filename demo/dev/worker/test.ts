@@ -1,6 +1,7 @@
 import { type Engine, Particular } from '../../../src';
 import type { Emitter } from '../../../src/emitter/emitter';
 import { Vec2 } from '../../../src/vec2';
+import img_3 from '../img/img_3.png';
 
 interface InitMessage {
   name: 'init';
@@ -24,7 +25,7 @@ addEventListener('message', (event) => {
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         // gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       },
     });
 
@@ -32,7 +33,7 @@ addEventListener('message', (event) => {
 
     particular.addScene(scene);
 
-    emitter = new Particular.Emitter(particular);
+    emitter = new Particular.Emitter(particular, { texture: img_3, is2d: true, spawnSize: 20, scaleWithAge: 0 });
 
     scene.add(emitter);
 

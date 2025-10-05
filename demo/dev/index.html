@@ -16,7 +16,7 @@
             <h3>Particle</h3>
             <label>
                 <span>Lifetime (ms)</span>
-                <input id="lifeTime" type="number" value="1000" step="100">
+                <input id="lifeTime" type="number" value="4000" step="100">
             </label>
             <label>
                 <span>Particle Count</span>
@@ -28,9 +28,19 @@
                 <input id="size" value="20" type="number" step="5">
             </label>
             <label>
+                <span>Aspect Ratio (px)</span>
+<!--                <input id="size" value="10" type="number" step="5">-->
+                <input id="aspectRatio" value="0.5" type="number" step="0.1">
+            </label>
+            <label>
                 <span>Initial Speed (px/s)</span>
 <!--                <input id="v0" value="2000" type="number" step="100">-->
                 <input id="v0" value="4000" type="number" step="100">
+            </label>
+            <label>
+                <span>Angular Velocity Distribution (deg/s)</span>
+<!--                <input id="v0" value="2000" type="number" step="100">-->
+                <input id="omegaDistribution" value="100" type="number" step="100">
             </label>
             <label>
                 <span>Gravity Y (px/s^2)</span>

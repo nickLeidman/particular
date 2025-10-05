@@ -4,6 +4,8 @@ import { Noise } from '../noise/noise';
 import type { ParticleBatch } from '../particle/particleBatch';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
+import emitterVertexShader2d from './emitterVertexShader2d.glsl';
+import type { EmitterOptions } from './types';
 
 const CAMERA_BINDING_POINT = 0;
 const EMITTER_BINDING_POINT = 1;
@@ -16,17 +18,24 @@ export class Emitter {
   private readonly program: WebGLProgram;
   private readonly particleBuffer: WebGLBuffer;
   private noise: WebGLTexture;
+  private particleTexture?: WebGLTexture;
 
   private batches: { particleBatch: ParticleBatch; data: Float32Array }[] = [];
 
-  constructor(private engine: Engine) {
+  constructor(
+    private engine: Engine,
+    private options: EmitterOptions,
+  ) {
     this.engine = engine;
     this.gl = engine.gl;
 
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
 
-    this.program = this.engine.createProgramFromShaders(emitterVertexShader, emitterFragmentShader);
+    this.program = this.engine.createProgramFromShaders(
+      this.options.is2d ? emitterVertexShader2d : emitterVertexShader,
+      emitterFragmentShader,
+    );
 
     const particleBuffer = this.gl.createBuffer();
     if (!particleBuffer) {
@@ -36,10 +45,21 @@ export class Emitter {
     this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
     this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
     this.gl.bufferData(this.gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
+
+    fetch(this.options.texture, { mode: 'cors' })
+      .then((res) => res.blob())
+      .then((blob) => createImageBitmap(blob, { premultiplyAlpha: 'premultiply', colorSpaceConversion: 'none' }))
+      .then((bitmap) => {
+        const texture = this.gl.createTexture();
+        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, bitmap);
+        this.gl.generateMipmap(this.gl.TEXTURE_2D);
+        this.particleTexture = texture;
+      });
   }
 
-  emit(particleBatch: ParticleBatch) {
-    const particleMatrix = M4.scaling(0.5 * this.engine.pixelRatio, 1 * this.engine.pixelRatio, 1 * this.engine.pixelRatio);
+  async emit(particleBatch: ParticleBatch) {
+    const particleMatrix = M4.scaling(particleBatch.aspectRatio * this.engine.pixelRatio, this.engine.pixelRatio, this.engine.pixelRatio);
     const world = M4.translation(particleBatch.origin.x * this.engine.pixelRatio, particleBatch.origin.y * this.engine.pixelRatio, 0);
 
     // particle buffer data, structured using std140 layout
@@ -68,7 +88,12 @@ export class Emitter {
       particleBatch.drag,
       particleBatch.angularDrag,
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
-      0,
+      this.options.spawnSize * this.engine.pixelRatio,
+
+      this.options.scaleWithAge, // padding
+      particleBatch.omegaDistribution, // padding
+      0, // padding
+      0, // padding
 
       ...world.toData(),
       ...particleMatrix.toData(),
@@ -82,6 +107,9 @@ export class Emitter {
   }
 
   draw() {
+    if (this.batches.length === 0 || !this.particleTexture) {
+      return;
+    }
     this.gl.useProgram(this.program);
     const currentTime = performance.now();
     const offset = 0;
@@ -90,6 +118,12 @@ export class Emitter {
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.noise);
     this.gl.uniform1i(uNoiseTextureLocation, 0); // Assign texture unit 0
+
+    const uParticleTextureLocation = this.gl.getUniformLocation(this.program, 'uParticleTexture');
+
+    this.gl.activeTexture(this.gl.TEXTURE1);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.particleTexture);
+    this.gl.uniform1i(uParticleTextureLocation, 1);
 
     for (let index = 0; index < this.batches.length; index++) {
       const particleBatch = this.batches[index].particleBatch;

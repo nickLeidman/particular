@@ -25,6 +25,7 @@ export class Engine {
   ) {
     const gl = canvas.getContext('webgl2', {
       powerPreference: 'high-performance',
+      premultipliedAlpha: true,
     });
     if (!gl) {
       throw new Error('WebGL is not supported');

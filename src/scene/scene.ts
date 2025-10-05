@@ -1,9 +1,8 @@
-import { DownsampleBlur } from '../effects/downsampleBlur/downsampleBlur';
+// import { DownsampleBlur } from '../effects/downsampleBlur/downsampleBlur';
 import type { Emitter } from '../emitter/emitter';
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
-import textureFragmentShader from '../textureRenderer/textureFragmentShader.glsl';
-import { GaussianBlurShader, HighPassShader, TextureRenderer } from '../textureRenderer/textureRenderer';
+import { FadeShader, GaussianBlurShader, HighPassShader, QuadRenderer, ToneMappingShader } from '../textureRenderer/quadRenderer';
 
 export class Scene {
   private gl: WebGL2RenderingContext;
@@ -17,8 +16,9 @@ export class Scene {
   private effectFrameBufferB: WebGLFramebuffer;
   private HighPassShader: HighPassShader;
   private BlurShader: GaussianBlurShader;
-
-  private comitter: TextureRenderer;
+  private ToneMappingShader: ToneMappingShader;
+  private QuadRenderer: QuadRenderer;
+  private FadeShader: FadeShader;
   // private effectApplyShader: TextureRenderer;
 
   constructor(
@@ -40,11 +40,14 @@ export class Scene {
     this.effectFrameBufferB = this.createSceneFrameBuffer();
 
     /* Setup new texture renderer */
-    this.HighPassShader = new HighPassShader(this.engine, { highPassThreshold: 0.95 });
-    // this.BlurShader = new GaussianBlurShader(this.engine, { radius: 3.5 });
+    this.HighPassShader = new HighPassShader(this.engine, { highPassThreshold: 0.9 });
     this.BlurShader = new GaussianBlurShader(this.engine, { radius: 3.5 });
+    // this.BlurShader = new GaussianBlurShader(this.engine, { radius: 3.5 });
 
-    this.comitter = new TextureRenderer(this.engine, textureFragmentShader);
+    this.ToneMappingShader = new ToneMappingShader(this.engine);
+
+    this.FadeShader = new FadeShader(this.engine, { fadeStartingPoint: 0.5 });
+    this.QuadRenderer = new QuadRenderer(this.engine);
 
     this.engine.onResolutionsChange((resolution) => {
       this.sceneFrameTexture = this.createSceneFrameTexture();
@@ -129,16 +132,19 @@ export class Scene {
     gl.bindTexture(gl.TEXTURE_2D, this.sceneFrameTexture);
 
     this.engine.attachRenderTarget(this.sceneFrameTexture, this.sceneFrameBuffer);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.engine.clear();
 
-    gl.enable(gl.BLEND);
     this.draw();
-    gl.disable(gl.BLEND);
 
+    this.engine.attachRenderTarget(this.effectFrameTextureA, this.effectFrameBufferA);
+    this.engine.clear();
+    this.FadeShader.draw(this.sceneFrameTexture);
+    //
     this.engine.resetRenderTarget();
 
-    this.commit();
-    this.postProcessing();
+    // this.postProcessing();
+
+    this.ToneMappingShader.draw(this.effectFrameTextureA);
   }
 
   // Draw the scene.
@@ -156,20 +162,20 @@ export class Scene {
     this.engine.clear();
     this.HighPassShader.draw(this.sceneFrameTexture);
 
-    // Blur the high pass result, using effectFrameTextureA as input
+    //Blur the high pass result, using effectFrameTextureA as input
     this.engine.attachRenderTarget(this.effectFrameTextureB, this.effectFrameBufferB);
     this.engine.clear();
     this.BlurShader.draw(this.effectFrameTextureA); //, this.effectFrameTextureB, this.effectFrameBufferB);
 
     // commit result to frame buffer
     gl.enable(gl.BLEND);
-    this.engine.resetRenderTarget();
+    gl.blendFunc(gl.ONE, gl.ONE);
+    this.engine.attachRenderTarget(this.sceneFrameTexture, this.sceneFrameBuffer);
 
-    this.comitter.draw(this.effectFrameTextureB);
+    this.QuadRenderer.draw(this.effectFrameTextureB);
     gl.disable(gl.BLEND);
-  }
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-  commit() {
-    this.comitter.draw(this.sceneFrameTexture);
+    this.engine.resetRenderTarget();
   }
 }

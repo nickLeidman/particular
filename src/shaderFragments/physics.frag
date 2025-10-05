@@ -22,7 +22,7 @@ float rotateInFluid(float startingAngle, float angularVelocity, float angularAcc
     float omegaFinal = angularVelocity / (1.0 + k * abs(angularVelocity) * age);
 
     // Compute angular displacement with logarithmic slowdown
-    float theta = (1.0 / k) * log(1.0 + k * abs(angularVelocity) * age);
+    float theta = sign(angularVelocity) * (1.0 / k) * log(1.0 + k * abs(angularVelocity) * age);
 
     // Add contribution from acceleration
     theta += 0.5 * angularAcceleration * age * age;
