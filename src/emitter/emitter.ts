@@ -6,16 +6,14 @@ import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import emitterVertexShader2d from './emitterVertexShader2d.glsl';
 import type { EmitterOptions } from './types';
+import { Entity } from '../entity/entity';
 
-const CAMERA_BINDING_POINT = 0;
 const EMITTER_BINDING_POINT = 1;
 
 const FREEZE_ON_MS = null;
 // const FREEZE_ON_MS = 200;
 
-export class Emitter {
-  private readonly gl: WebGL2RenderingContext;
-  private readonly program: WebGLProgram;
+export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
   private noise: WebGLTexture;
   private particleTexture?: WebGLTexture;
@@ -23,19 +21,13 @@ export class Emitter {
   private batches: { particleBatch: ParticleBatch; data: Float32Array }[] = [];
 
   constructor(
-    private engine: Engine,
+    engine: Engine,
     private options: EmitterOptions,
   ) {
-    this.engine = engine;
-    this.gl = engine.gl;
+    super(engine, engine.createProgramFromShaders(options.is2d ? emitterVertexShader2d : emitterVertexShader, emitterFragmentShader));
 
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
-
-    this.program = this.engine.createProgramFromShaders(
-      this.options.is2d ? emitterVertexShader2d : emitterVertexShader,
-      emitterFragmentShader,
-    );
 
     const particleBuffer = this.gl.createBuffer();
     if (!particleBuffer) {
@@ -46,16 +38,7 @@ export class Emitter {
     this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
     this.gl.bufferData(this.gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
 
-    fetch(this.options.texture, { mode: 'cors' })
-      .then((res) => res.blob())
-      .then((blob) => createImageBitmap(blob, { premultiplyAlpha: 'premultiply', colorSpaceConversion: 'none' }))
-      .then((bitmap) => {
-        const texture = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, texture);
-        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, bitmap);
-        this.gl.generateMipmap(this.gl.TEXTURE_2D);
-        this.particleTexture = texture;
-      });
+    this.particleTexture = options.texture;
   }
 
   async emit(particleBatch: ParticleBatch) {
@@ -152,23 +135,5 @@ export class Emitter {
       this.gl.drawArrays(this.gl.TRIANGLES, offset, vertexCount);
     }
     this.gl.bindBuffer(this.gl.UNIFORM_BUFFER, null);
-  }
-
-  setup(projection: M4, view: M4) {
-    const gl = this.gl;
-    gl.useProgram(this.program);
-
-    const cameraBuffer = gl.createBuffer();
-    if (!cameraBuffer) {
-      throw new Error('Failed to create buffer');
-    }
-    const cameraReference = gl.getUniformBlockIndex(this.program, 'Camera');
-    gl.uniformBlockBinding(this.program, cameraReference, CAMERA_BINDING_POINT);
-
-    gl.bindBufferBase(gl.UNIFORM_BUFFER, CAMERA_BINDING_POINT, cameraBuffer);
-
-    const cameraData = new Float32Array([...projection.toData(), ...view.toData()]);
-
-    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
   }
 }

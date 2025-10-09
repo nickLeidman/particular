@@ -1,5 +1,4 @@
 import type { Particular } from '../../../src';
-import { Vec2 } from '../../../src/vec2';
 import MyWorker from '../worker/test?worker';
 
 function getInputValue(id: string) {
@@ -7,27 +6,6 @@ function getInputValue(id: string) {
 }
 
 const compileConfig = (x: number, y: number): ConstructorParameters<typeof Particular.ParticleBatch>[0] => {
-  return {
-    lifeTime: getInputValue('lifeTime'),
-    count: getInputValue('count'),
-    size: getInputValue('size'),
-    aspectRatio: getInputValue('aspectRatio'),
-    origin: { x, y },
-    v0: { x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0') },
-    omegaDistribution: getInputValue('omegaDistribution'),
-    velocityVariance: { x: 0.5, y: 0.5, z: 0.5 },
-    gravity: { x: 0, y: getInputValue('g'), z: 0 },
-    spawnDuration: getInputValue('spawnDuration'),
-    Cd: getInputValue('Cd'),
-    Cr: getInputValue('Cr'),
-    density: getInputValue('ro') / 1000 ** 3,
-    area: getInputValue('A'),
-    mass: getInputValue('m'),
-    momentOfInertia: getInputValue('I'),
-  };
-};
-
-const compileTextureConfig = (x: number, y: number): ConstructorParameters<typeof Particular.ParticleBatch>[0] => {
   return {
     lifeTime: getInputValue('lifeTime'),
     count: getInputValue('count'),
@@ -92,13 +70,6 @@ if (canvas.transferControlToOffscreen) {
 container.addEventListener('click', (event) => {
   worker.postMessage({
     name: 'emit',
-    config: compileTextureConfig(event.clientX, event.clientY),
+    config: compileConfig(event.clientX, event.clientY),
   });
 });
-
-// // setInterval(() => {
-// worker.postMessage({
-//   name: 'emit',
-//   config: compileConfig(Math.random() * (container.clientWidth / 2), Math.random() * (container.clientHeight / 2)),
-// });
-// // }, 1000);
