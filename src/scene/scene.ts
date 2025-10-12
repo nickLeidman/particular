@@ -50,9 +50,9 @@ export class Scene {
   }
 
   // Update the scene.
-  draw() {
+  draw(time: number) {
     for (const entity of this.entities) {
-      entity.draw();
+      entity.draw(time);
     }
   }
 

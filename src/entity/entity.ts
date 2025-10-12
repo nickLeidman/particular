@@ -12,7 +12,7 @@ export abstract class Entity {
     this.program = program;
   }
 
-  abstract draw(): void;
+  abstract draw(time: number): void;
 
   setup(projection: M4, view: M4) {
     const gl = this.gl;

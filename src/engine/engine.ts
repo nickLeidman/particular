@@ -1,19 +1,10 @@
-import { Emitter } from '../emitter/emitter';
-import { ParticleBatch } from '../particle/particleBatch';
-import { Scene } from '../scene/scene';
+import type { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
-import { QuadRenderer, ToneMappingShader } from '../textureRenderer/quadRenderer';
-import { TextureLoader } from '../textureLoader/textureLoader';
 
 /**
  * Particular is a class that represents an object to handle ad draw particle effects on the screen.
  *  */
 export class Engine {
-  static Scene = Scene;
-  static Emitter = Emitter;
-  static ParticleBatch = ParticleBatch;
-  static QuadShader = QuadRenderer;
-
   static BindingPoints = {
     Camera: 0,
   };
@@ -21,11 +12,11 @@ export class Engine {
   readonly gl: WebGL2RenderingContext;
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
-  public pixelRatio = 2; //window.devicePixelRatio;
+  public pixelRatio: number;
+  private size: Vec2;
 
-  private resolutionChangeCallbacks: Set<(resolution: Vec2) => void> = new Set();
-
-  public TextureLoader: TextureLoader;
+  private time = 0;
+  private paused = true;
 
   // Rendering
   private textureA: WebGLTexture;
@@ -36,14 +27,13 @@ export class Engine {
   private currentRenderTarget: 'A' | 'B' = 'A';
   private postProcessingPipeline: ((sourceTexture: WebGLTexture) => void)[] = [];
 
-  // Shaders
-  private ToneMappingShader: ToneMappingShader;
-
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
-    private size: Vec2,
-    options?: { beforeSetup?: (gl: WebGLRenderingContext) => void },
+    options: { pixelRation: number; size: Vec2; beforeSetup?: (gl: WebGLRenderingContext) => void },
   ) {
+    this.pixelRatio = options.pixelRation;
+    this.size = options.size;
+
     const gl = canvas.getContext('webgl2', {
       powerPreference: 'high-performance',
       premultipliedAlpha: true,
@@ -57,14 +47,13 @@ export class Engine {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
     options?.beforeSetup?.(this.gl);
 
-    this.setup();
+    this.updateResolution();
 
-    this.TextureLoader = new TextureLoader(this);
-
-    // Rendering
-    this.ToneMappingShader = new ToneMappingShader(this);
+    this.canvas.width = this.resolution.x;
+    this.canvas.height = this.resolution.y;
 
     this.textureA = this.createFrameTexture();
     this.bufferA = this.createFrameBuffer();
@@ -72,64 +61,27 @@ export class Engine {
     this.bufferB = this.createFrameBuffer();
   }
 
-  attachPostProcessor(processor: (sourceTexture: WebGLTexture) => void) {
-    this.postProcessingPipeline.push(processor);
-  }
-
-  setup() {
-    const width = this.size.x;
-    const height = this.size.y;
-    const pixelWidth = width * this.pixelRatio;
-    const pixelHeight = height * this.pixelRatio;
-
-    this.resolution = new Vec2(pixelWidth, pixelHeight);
-
-    this.canvas.width = pixelWidth;
-    this.canvas.height = pixelHeight;
-    // this.canvas.style.width = `${width}px`;
-    // this.canvas.style.height = `${height}px`;
-
-    this.gl.clearColor(0, 0, 0, 0);
-  }
-
   addScene(scene: Scene) {
     this.scenes.push(scene);
+    scene.setup();
   }
 
+  /* Rendering */
   draw() {
+    // render the scene
     const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
     this.attachRenderTarget(targetTexture, targetBuffer);
     this.clear();
-
     for (const scene of this.scenes) {
-      scene.draw();
+      scene.draw(this.time);
     }
-
     this.flipRenderTarget();
 
+    // render the post-processing
     this.postProcessing();
 
-    this.commit();
+    // reset the render target
     this.currentRenderTarget = 'A';
-  }
-
-  postProcessing() {
-    for (const processor of this.postProcessingPipeline) {
-      const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
-      const sourceTexture = this.getCurrentRenderSource();
-      this.attachRenderTarget(targetTexture, targetBuffer);
-      this.clear();
-      processor(sourceTexture);
-      this.resetRenderTarget();
-      this.flipRenderTarget();
-    }
-  }
-
-  commit() {
-    this.resetRenderTarget();
-    this.clear();
-    this.ToneMappingShader.draw(this.getCurrentRenderSource());
-    this.resetRenderTarget();
   }
 
   getCurrentRenderTarget(): [WebGLTexture, WebGLFramebuffer] {
@@ -148,15 +100,57 @@ export class Engine {
   }
 
   start() {
-    for (const scene of this.scenes) {
-      scene.setup();
-    }
+    let previousTime = performance.now();
+    this.paused = false;
 
-    const renderLoop = () => {
+    const renderLoop = (timestamp: number) => {
+      const delta = timestamp - previousTime;
+      previousTime = timestamp;
+      if (this.paused) return;
+      this.time += delta;
       this.draw();
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
+  }
+
+  drawQuad() {
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
+  }
+
+  clear() {
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+  }
+
+  /* Resize */
+  resize(x: number, y: number) {
+    this.size = new Vec2(x, y);
+    this.updateResolution();
+
+    console.log(this.resolution);
+
+    this.canvas.width = this.resolution.x;
+    this.canvas.height = this.resolution.y;
+
+    this.textureA = this.createFrameTexture();
+    this.bufferA = this.createFrameBuffer();
+    this.textureB = this.createFrameTexture();
+    this.bufferB = this.createFrameBuffer();
+
+    for (const scene of this.scenes) {
+      scene.setup();
+    }
+
+    this.draw();
+  }
+
+  private updateResolution() {
+    const width = this.size.x;
+    const height = this.size.y;
+    const pixelWidth = width * this.pixelRatio;
+    const pixelHeight = height * this.pixelRatio;
+
+    this.resolution = new Vec2(pixelWidth, pixelHeight);
   }
 
   setViewport(x: number, y: number, width: number, height: number) {
@@ -165,6 +159,100 @@ export class Engine {
 
   resetViewport() {
     this.gl.viewport(0, 0, this.resolution.x, this.resolution.y);
+  }
+
+  /* Post Processing */
+  attachPostProcessor(processor: (sourceTexture: WebGLTexture) => void) {
+    this.postProcessingPipeline.push(processor);
+  }
+
+  postProcessing() {
+    this.postProcessingPipeline.forEach((processor, index) => {
+      const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
+      const sourceTexture = this.getCurrentRenderSource();
+      if (index !== this.postProcessingPipeline.length - 1) {
+        this.attachRenderTarget(targetTexture, targetBuffer);
+      } else {
+        this.resetRenderTarget();
+      }
+      this.clear();
+      processor(sourceTexture);
+      this.resetRenderTarget();
+      this.flipRenderTarget();
+    });
+  }
+
+  /* Context */
+  attachRenderTarget(texture: WebGLTexture, framebuffer: WebGLFramebuffer | null) {
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, texture, 0);
+  }
+
+  resetRenderTarget() {
+    this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+  }
+
+  resetBlend() {
+    this.gl.disable(this.gl.BLEND);
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE_MINUS_SRC_ALPHA);
+  }
+
+  /* Time */
+  now(): number {
+    return this.time;
+  }
+
+  pause() {
+    this.paused = true;
+  }
+
+  resume() {
+    this.paused = false;
+    this.start();
+  }
+
+  skip(time: number) {
+    this.time += time;
+    this.draw();
+  }
+
+  togglePause() {
+    if (this.paused) {
+      this.resume();
+    } else {
+      this.pause();
+    }
+  }
+
+  /* Factories */
+  createFrameTexture(): WebGLTexture {
+    const gl = this.gl;
+    const resolution = this.resolution;
+
+    const texture = this.gl.createTexture();
+    if (!texture) {
+      throw new Error('Failed to create sceneFrameTexture');
+    }
+
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, resolution.x, resolution.y, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    return texture;
+  }
+
+  createFrameBuffer(): WebGLFramebuffer {
+    const gl = this.gl;
+    const framebuffer = gl.createFramebuffer();
+    if (!framebuffer) {
+      throw new Error('Failed to create framebuffer');
+    }
+    return framebuffer;
   }
 
   createShader(type: number, source: string) {
@@ -203,61 +291,4 @@ export class Engine {
     }
     return program;
   }
-
-  createFrameTexture(): WebGLTexture {
-    const gl = this.gl;
-    const resolution = this.resolution;
-
-    const texture = this.gl.createTexture();
-    if (!texture) {
-      throw new Error('Failed to create sceneFrameTexture');
-    }
-
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, resolution.x, resolution.y, 0, gl.RGBA, gl.FLOAT, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
-
-    return texture;
-  }
-
-  createFrameBuffer(): WebGLFramebuffer {
-    const gl = this.gl;
-    const framebuffer = gl.createFramebuffer();
-    if (!framebuffer) {
-      throw new Error('Failed to create framebuffer');
-    }
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    return framebuffer;
-  }
-
-  onResolutionsChange(callback: (resolution: Vec2) => void) {
-    this.resolutionChangeCallbacks.add(callback);
-  }
-
-  attachRenderTarget(texture: WebGLTexture, framebuffer: WebGLFramebuffer | null) {
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, framebuffer);
-    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, texture, 0);
-  }
-
-  resetRenderTarget() {
-    this.gl.bindTexture(this.gl.TEXTURE_2D, null);
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-  }
-
-  drawQuad() {
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-  }
-
-  clear() {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-  }
 }
-
-export const Particular = Engine;

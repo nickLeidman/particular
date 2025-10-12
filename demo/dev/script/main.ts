@@ -1,11 +1,12 @@
-import type { Particular } from '../../../src';
+// @ts-ignore
 import MyWorker from '../worker/test?worker';
+import type { ParticleBatch } from '../../../src/particle/particleBatch';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
 }
 
-const compileConfig = (x: number, y: number): ConstructorParameters<typeof Particular.ParticleBatch>[0] => {
+const compileConfig = (x: number, y: number): ConstructorParameters<typeof ParticleBatch>[0] => {
   return {
     lifeTime: getInputValue('lifeTime'),
     count: getInputValue('count'),
@@ -71,5 +72,28 @@ container.addEventListener('click', (event) => {
   worker.postMessage({
     name: 'emit',
     config: compileConfig(event.clientX, event.clientY),
+  });
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'p' || event.key === ' ') {
+    worker.postMessage({
+      name: 'togglePause',
+    });
+  } else if (event.key === 'ArrowLeft') {
+    worker.postMessage({
+      name: 'skipBackward',
+    });
+  } else if (event.key === 'ArrowRight') {
+    worker.postMessage({
+      name: 'skipForward',
+    });
+  }
+});
+
+window.addEventListener('resize', () => {
+  worker.postMessage({
+    name: 'resize',
+    size: { x: container.clientWidth, y: container.clientHeight },
   });
 });

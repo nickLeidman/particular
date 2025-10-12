@@ -19,7 +19,6 @@ export interface ParticleBatchOptions {
 }
 
 export class ParticleBatch {
-  public startTime: number;
   public lifeTime: number;
   public count: number;
   public size: number;
@@ -36,7 +35,6 @@ export class ParticleBatch {
 
   constructor(options: ParticleBatchOptions) {
     this.lifeTime = options.lifeTime;
-    this.startTime = performance.now();
     this.count = options.count;
     this.size = options.size;
     this.aspectRatio = options.aspectRatio;
