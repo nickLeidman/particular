@@ -12,7 +12,6 @@ export default defineConfig({
       fileName: 'index',
       formats: ['es'],
     },
-    target: 'modules',
     outDir: '../dist/lib',
     emptyOutDir: true,
   },

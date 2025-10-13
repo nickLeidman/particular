@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "declaration": true,
+    "outDir": "lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "types": ["vite-plugin-glsl/ext"]
+  },
+  "include": ["./src/**/*"],
+  "lib": ["WebWorker"]
+}

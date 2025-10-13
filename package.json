@@ -1,16 +1,29 @@
 {
   "name": "particular",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "0.1.0",
   "type": "module",
+  "main": "dist/lib/index.js",
+  "module": "dist/lib/index.js",
+  "types": "dist/lib/index.d.ts",
+  "keywords": [],
+  "author": "Nikolajs Leidmans",
+  "license": "LGPL-3.0-or-later",
+  "description": "Particular is a simple library for rendering particle effects. It uses WebGL2 and supports running in workers.",
+  "exports": {
+    ".": {
+      "import": "./dist/lib/index.js",
+      "types": "./dist/lib/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
   "scripts": {
     "build": "vite build --config vite.config.js",
-    "dev": "vite --host --config ./demo/vite.config.js"
+    "build:watch": "vite build --watch --config vite.config.js",
+    "prepare": "npm run build",
+    "dev": "npm -w demo run dev"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "workspaces": ["demo"],
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
     "typescript": "^5.9.3",

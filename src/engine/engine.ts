@@ -70,7 +70,10 @@ export class Engine {
   draw() {
     // render the scene
     const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
-    this.attachRenderTarget(targetTexture, targetBuffer);
+    const hasPostProcessing = this.postProcessingPipeline.length > 0;
+    if (hasPostProcessing) {
+      this.attachRenderTarget(targetTexture, targetBuffer);
+    }
     this.clear();
     for (const scene of this.scenes) {
       scene.draw(this.time);
@@ -78,7 +81,9 @@ export class Engine {
     this.flipRenderTarget();
 
     // render the post-processing
-    this.postProcessing();
+    if (hasPostProcessing) {
+      this.postProcessing();
+    }
 
     // reset the render target
     this.currentRenderTarget = 'A';
