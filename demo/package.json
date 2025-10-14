@@ -9,7 +9,7 @@
     "preview": "vite preview --host --config ./vite.config.js"
   },
   "dependencies": {
-    "particular": "file:.."
+    "@nleidman/particular": "file:.."
   },
   "devDependencies": {
     "typescript": "^5.9.3",

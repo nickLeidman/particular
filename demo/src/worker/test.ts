@@ -1,4 +1,4 @@
-import { Engine, Emitter, Vec2, ParticleBatch, Scene, TextureLoader } from 'particular';
+import { Engine, Emitter, Vec2, ParticleBatch, Scene, TextureLoader } from '@nleidman/particular';
 import particleImage from '../img/particle.png';
 
 interface InitMessage {

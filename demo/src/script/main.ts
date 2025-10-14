@@ -1,5 +1,5 @@
 import MyWorker from '../worker/test?worker';
-import type { ParticleBatch } from 'particular';
+import type { ParticleBatch } from '@nleidman/particular';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
