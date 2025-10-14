@@ -3,7 +3,7 @@
 #include ../shaderFragments/transform.frag
 #include ../shaderFragments/physics.frag
 
-precision highp float;
+precision mediump float;
 
 layout(std140) uniform Camera {
     mat4 projection;
@@ -23,6 +23,8 @@ layout(std140) uniform Emitter {
     float spawnDuration;
     float spawnSize;
     float scaleWithAge;
+    vec2 atlasSize;
+    vec2 atlasOffset;
     mat4 world;
     mat4 model;
 };
@@ -35,6 +37,8 @@ out float vBrightness;
 out float vColorSeed;
 out float vRipeness;
 out vec2 aTexCoords;
+out vec2 vAtlasSize;
+out vec2 vAtlasOffset;
 
 float noise2d(vec2 co, sampler2D sampler){
     // assuming the texture is 256x256, get the mod of the coordinates
@@ -148,4 +152,6 @@ void main() {
     vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
     vBorn = float(age >= 0.0 && ageScale > 0.0);
     aTexCoords = vec2(position.x, position.y);
+    vAtlasSize = atlasSize;
+    vAtlasOffset = atlasOffset;
 }

@@ -1,30 +1,29 @@
 import type { Engine } from '../engine/engine';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
-import type { ParticleBatch } from '../particle/particleBatch';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import emitterVertexShader2d from './emitterVertexShader2d.glsl';
-import type { EmitterOptions } from './types';
+import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
 import { Entity } from '../entity/entity';
 
 const EMITTER_BINDING_POINT = 1;
-
-const FREEZE_ON_MS = null;
-// const FREEZE_ON_MS = 200;
 
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
   private noise: WebGLTexture;
   private particleTexture?: WebGLTexture;
+  private atlasLayout: { rows: number; columns: number };
 
-  private batches: { particleBatch: ParticleBatch; data: Float32Array; startTime: number }[] = [];
+  private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
 
   constructor(
     engine: Engine,
     private options: EmitterOptions,
   ) {
     super(engine, engine.createProgramFromShaders(options.is2d ? emitterVertexShader2d : emitterVertexShader, emitterFragmentShader));
+
+    this.atlasLayout = this.options.atlasLayout ?? { rows: 1, columns: 1 }
 
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
@@ -41,7 +40,21 @@ export class Emitter extends Entity {
     this.particleTexture = options.texture;
   }
 
-  async emit(particleBatch: ParticleBatch) {
+  processParticleBatchOptions(options: ParticleBatchOptions): ParticleBatchProcessed {
+    return {
+      ...options,
+      aspectRatio: options.aspectRatio ?? 0,
+      velocityBias: options.velocityBias ?? {x: 0, y: 0, z: 0},
+      spawnDuration: options.spawnDuration ?? 0,
+      atlasTextureOffset: options.atlasTextureOffset ?? {column: 0, row: 0},
+      scaleWithAge: options.scaleWithAge ?? 0,
+      drag: (options.Cd * options.density * options.area) / (2 * options.mass),
+      angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
+    }
+  }
+
+  async emit(options: ParticleBatchOptions) {
+    const particleBatch = this.processParticleBatchOptions(options);
     const particleMatrix = M4.scaling(particleBatch.aspectRatio * this.engine.pixelRatio, this.engine.pixelRatio, this.engine.pixelRatio);
     const world = M4.translation(particleBatch.origin.x * this.engine.pixelRatio, particleBatch.origin.y * this.engine.pixelRatio, 0);
     const startTime = this.engine.now();
@@ -64,18 +77,23 @@ export class Emitter extends Entity {
       particleBatch.v0.z, // vz
       0, // padding
 
-      particleBatch.velocityVariance.x, // velocity variance x
-      particleBatch.velocityVariance.y, // velocity variance y
-      particleBatch.velocityVariance.z, // velocity variance z
+      particleBatch.velocityBias.x, // bias of velocity variance x
+      particleBatch.velocityBias.y, // bias of velocity variance x
+      particleBatch.velocityBias.z, // bias of velocity variance x
       particleBatch.size, // size in pixels
 
       particleBatch.drag,
       particleBatch.angularDrag,
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
-      this.options.spawnSize * this.engine.pixelRatio,
+      particleBatch.spawnSize * this.engine.pixelRatio,
 
-      this.options.scaleWithAge, // padding
-      particleBatch.omegaDistribution, // padding
+      particleBatch.scaleWithAge,
+      particleBatch.omega0,
+      this.atlasLayout.columns,
+      this.atlasLayout.rows,
+
+      particleBatch.atlasTextureOffset.column,
+      particleBatch.atlasTextureOffset.row,
       0, // padding
       0, // padding
 
@@ -119,14 +137,14 @@ export class Emitter extends Entity {
       const age = time - startTime;
       const vertexCount = particleBatch.count * 3;
 
-      if (age > lifeTime + particleBatch.spawnDuration && !FREEZE_ON_MS) {
+      if (age > lifeTime + particleBatch.spawnDuration) {
         // remove batch
         this.batches.splice(index, 1);
         index--;
         continue;
       }
 
-      data[0] = (FREEZE_ON_MS ?? age) / 1000;
+      data[0] = age / 1000;
 
       gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
       gl.bindBuffer(gl.UNIFORM_BUFFER, this.particleBuffer);

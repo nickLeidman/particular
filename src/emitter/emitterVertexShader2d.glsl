@@ -3,7 +3,7 @@
 #include ../shaderFragments/transform.frag
 #include ../shaderFragments/physics.frag
 
-precision highp float;
+precision mediump float;
 
 layout(std140) uniform Camera {
     mat4 projection;
@@ -16,14 +16,16 @@ layout(std140) uniform Emitter {
     float lifetime;
     vec3 gravity;
     vec3 v0;
-    vec3 velocityVariance;
+    vec3 velocityBias;
     float size;
     float drag;
     float angularDrag;
     float spawnDuration;
     float spawnSize;
     float scaleWithAge;
-    float omegaDistribution;
+    float omega0;
+    vec2 atlasSize;
+    vec2 atlasOffset;
     mat4 world;
     mat4 model;
 };
@@ -36,6 +38,8 @@ out float vBrightness;
 out float vColorSeed;
 out float vRipeness;
 out vec2 aTexCoords;
+out vec2 vAtlasSize;
+out vec2 vAtlasOffset;
 
 float noise2d(vec2 co, sampler2D sampler){
     // assuming the texture is 256x256, get the mod of the coordinates
@@ -74,7 +78,7 @@ void main() {
 
     /*Rotation*/
     float startAngle = sampleNoiseNormalized(triangleIndex, batchHash + 10.0) * 2.0 * 3.14159;
-    float angularVelocity = sampleNoise(triangleIndex, batchHash + 100.0) * omegaDistribution * 2.0 - omegaDistribution;
+    float angularVelocity = sampleNoise(triangleIndex, batchHash + 100.0) * omega0 * 2.0 - omega0;
     float rotationAngle = rotateInFluid(startAngle, angularVelocity, 0.0, age, angularDrag);
     mat4 rotationMatrix = rotate(
         mat4(1.0),
@@ -87,8 +91,8 @@ void main() {
     );
 
     vec3 velocity = vec3(
-        sampleNoiseNormalized(triangleIndex, batchHash + 30.0) * v0.x,
-        (sampleNoiseNormalized(triangleIndex, batchHash + 40.0) + -0.6) * v0.y,
+        (sampleNoiseNormalized(triangleIndex, batchHash + 30.0) + velocityBias.x) * v0.x,
+        (sampleNoiseNormalized(triangleIndex, batchHash + 40.0) + velocityBias.y) * v0.y,
         0.0
     );
 
@@ -123,4 +127,6 @@ void main() {
     vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
     vBorn = float(age >= 0.0 && ageScale > 0.0);
     aTexCoords = vec2(position.x, position.y);
+    vAtlasSize = atlasSize;
+    vAtlasOffset = atlasOffset;
 }

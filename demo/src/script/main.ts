@@ -1,21 +1,21 @@
-import MyWorker from '../worker/test?worker';
-import type { ParticleBatch } from '@nleidman/particular';
+import MyWorker from './worker/worker?worker';
+import { ParticleBatchOptions } from '@nleidman/particular';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
 }
 
-const compileConfig = (x: number, y: number): ConstructorParameters<typeof ParticleBatch>[0] => {
+const compileConfig = (x: number, y: number): ParticleBatchOptions => {
   return {
     lifeTime: getInputValue('lifeTime'),
     count: getInputValue('count'),
     size: 50,
     aspectRatio: 1,
-    origin: { x, y },
-    v0: { x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0') },
-    omegaDistribution: getInputValue('omegaDistribution'),
-    velocityVariance: { x: 0.5, y: 0.5, z: 0.5 },
-    gravity: { x: 0, y: getInputValue('g'), z: 0 },
+    origin: {x, y},
+    v0: {x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0')},
+    velocityBias: {x: 0, y: 0, z: 0},
+    omega0: getInputValue('omega0'),
+    gravity: {x: 0, y: getInputValue('g'), z: 0},
     spawnDuration: getInputValue('spawnDuration'),
     Cd: getInputValue('Cd'),
     Cr: getInputValue('Cr'),
@@ -23,6 +23,9 @@ const compileConfig = (x: number, y: number): ConstructorParameters<typeof Parti
     area: getInputValue('A'),
     mass: getInputValue('m'),
     momentOfInertia: getInputValue('I'),
+    atlasTextureOffset: {column: 0, row: 0},
+    spawnSize: 20,
+    scaleWithAge: 1
   };
 };
 
@@ -59,7 +62,7 @@ if (canvas.transferControlToOffscreen) {
     {
       name: 'init',
       canvas: offscreen,
-      size: { x: container.clientWidth, y: container.clientHeight },
+      size: {x: container.clientWidth, y: container.clientHeight},
     },
     [offscreen],
   ); // Transfer control
@@ -93,6 +96,6 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('resize', () => {
   worker.postMessage({
     name: 'resize',
-    size: { x: container.clientWidth, y: container.clientHeight },
+    size: {x: container.clientWidth, y: container.clientHeight},
   });
 });

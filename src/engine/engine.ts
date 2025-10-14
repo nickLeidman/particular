@@ -29,10 +29,10 @@ export class Engine {
 
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
-    options: { pixelRation: number; size: Vec2; beforeSetup?: (gl: WebGLRenderingContext) => void },
+    options: { pixelRation: number; size: {x: number, y: number}; beforeSetup?: (gl: WebGLRenderingContext) => void },
   ) {
     this.pixelRatio = options.pixelRation;
-    this.size = options.size;
+    this.size = new Vec2(options.size.x, options.size.y);
 
     const gl = canvas.getContext('webgl2', {
       powerPreference: 'high-performance',

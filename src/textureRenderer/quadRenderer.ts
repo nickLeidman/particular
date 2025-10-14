@@ -3,7 +3,6 @@ import qadVertexShader from '../commonShaders/quadVertexShader.glsl';
 import blurFragmentShader from './blurFragmentShader.glsl';
 import gaussianBlurFragmentShader from './gaussianBlurFragmentShader.glsl';
 import highPassFragmentShader from './highPassFragmentShader.glsl';
-import fadeFragmentShader from './fadeFragmentShader.glsl';
 import toneMappingFragmentShader from './toneMappingFragmentShader.glsl';
 import textureFragmentShader from './textureFragmentShader.glsl';
 
@@ -55,21 +54,6 @@ export class HighPassShader extends QuadRenderer {
 
     /* attach afloat uniform with high pass threshold */
     gl.uniform1f(gl.getUniformLocation(this.program, 'uHighPassThreshold'), this.highPassThreshold);
-  }
-}
-
-export class FadeShader extends QuadRenderer {
-  private readonly fadeStartingPoint: number;
-
-  constructor(engine: Engine, { fadeStartingPoint }: { fadeStartingPoint: number }) {
-    super(engine, fadeFragmentShader);
-    this.fadeStartingPoint = fadeStartingPoint;
-  }
-
-  preDraw() {
-    const gl = this.engine.gl;
-
-    gl.uniform1f(gl.getUniformLocation(this.program, 'uFadeStartingPoint'), this.fadeStartingPoint);
   }
 }
 

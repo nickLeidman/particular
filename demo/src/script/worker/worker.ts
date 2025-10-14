@@ -1,5 +1,5 @@
-import { Engine, Emitter, Vec2, ParticleBatch, Scene, TextureLoader } from '@nleidman/particular';
-import particleImage from '../img/particle.png';
+import { Engine, Emitter, ParticleBatchOptions, Scene, TextureLoader } from '@nleidman/particular';
+import particleImage from '../../img/particle_atlas.png';
 
 interface InitMessage {
   name: 'init';
@@ -13,7 +13,7 @@ interface ResizeMessage {
 
 interface EmitMessage {
   name: 'emit';
-  config: ConstructorParameters<typeof ParticleBatch>[0];
+  config: ParticleBatchOptions;
 }
 
 let engine: Engine;
@@ -23,21 +23,21 @@ addEventListener('message', async (event) => {
   if (event.data?.name === 'init') {
     const data = event.data as InitMessage;
     engine = new Engine(data.canvas, {
-      size: new Vec2(data.size.x, data.size.y),
+      size: data.size,
       pixelRation: 2,
     });
-
-    // const fadeShader = new FadeShader(engine, { fadeStartingPoint: 0.5 });
-    // engine.attachPostProcessor((sourceTexture) => {
-    //   fadeShader.draw(sourceTexture);
-    // });
 
     const scene = new Scene(engine);
 
     const textureLoader = new TextureLoader(engine);
     const texture = await textureLoader.load(particleImage);
 
-    emitter = new Emitter(engine, { texture: texture, is2d: true, spawnSize: 20, scaleWithAge: 0 });
+    emitter = new Emitter(engine, {
+      texture: texture,
+      atlasLayout: { columns: 2, rows: 1, },
+      is2d: true,
+    });
+
 
     scene.add(emitter);
 
@@ -48,7 +48,7 @@ addEventListener('message', async (event) => {
 
   if (event.data?.name === 'emit') {
     const data = event.data as EmitMessage;
-    emitter?.emit(new ParticleBatch(data.config));
+    emitter?.emit(data.config);
   }
 
   if (event.data?.name === 'togglePause') {
