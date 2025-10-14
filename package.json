@@ -8,6 +8,7 @@
   "keywords": [],
   "author": "Nikolajs Leidmans",
   "license": "LGPL-3.0-or-later",
+  "homepage": "https://github.com/nickLeidman/particular",
   "description": "Particular is a simple library for rendering particle effects. It uses WebGL2 and supports running in workers.",
   "exports": {
     ".": {
