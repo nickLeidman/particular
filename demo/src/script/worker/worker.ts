@@ -1,5 +1,5 @@
-import { Engine, Emitter, ParticleBatchOptions, Scene, TextureLoader } from '@nleidman/particular';
-import particleImage from '../../img/particle_atlas.png';
+import { Engine, Emitter, GaussianBlurShader, ParticleBatchOptions, Scene, TextureLoader, QuadRenderer } from '@nleidman/particular';
+import particleImage from '../../img/particle.png';
 
 interface InitMessage {
   name: 'init';
@@ -27,6 +27,18 @@ addEventListener('message', async (event) => {
       pixelRation: 2,
     });
 
+    // const gaussianShader = new GaussianBlurShader(engine, {radius: 10});
+    // const quadDrawer = new QuadRenderer(engine);
+    // engine.attachPostProcessor((sourceTexture) => {
+    //   engine.timer.measure('quad', () =>
+    //     quadDrawer.draw(sourceTexture), (label, nanoseconds) => {
+    //       console.log(`${label}: ${nanoseconds / 1000000}ms`);
+    //   })
+    // })
+    // engine.attachPostProcessor((sourceTexture) => {
+    //   gaussianShader.draw(sourceTexture)
+    // })
+
     const scene = new Scene(engine);
 
     const textureLoader = new TextureLoader(engine);
@@ -34,7 +46,7 @@ addEventListener('message', async (event) => {
 
     emitter = new Emitter(engine, {
       texture: texture,
-      atlasLayout: { columns: 2, rows: 1, },
+      atlasLayout: { columns: 1, rows: 1, },
       is2d: true,
     });
 

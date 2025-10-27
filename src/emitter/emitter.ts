@@ -46,7 +46,7 @@ export class Emitter extends Entity {
       aspectRatio: options.aspectRatio ?? 0,
       velocityBias: options.velocityBias ?? {x: 0, y: 0, z: 0},
       spawnDuration: options.spawnDuration ?? 0,
-      atlasTextureOffset: options.atlasTextureOffset ?? {column: 0, row: 0},
+      atlas: options.atlas ?? {offset: {column: 0, row: 0}},
       scaleWithAge: options.scaleWithAge ?? 0,
       drag: (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
@@ -63,7 +63,7 @@ export class Emitter extends Entity {
     const particleBufferData = new Float32Array([
       /* Time Block */
       0, // age in seconds, filled in draw method
-      startTime % (256 * 256), // batch hash, mod 256^2
+      (startTime * (1 + Math.random())) % (256 * 256), // batch hash, mod 256^2
       particleBatch.lifeTime / 1000, // lifetime in seconds
       0, // padding
 
@@ -92,9 +92,14 @@ export class Emitter extends Entity {
       this.atlasLayout.columns,
       this.atlasLayout.rows,
 
-      particleBatch.atlasTextureOffset.column,
-      particleBatch.atlasTextureOffset.row,
+      particleBatch.atlas.offset.column,
+      particleBatch.atlas.offset.row,
       0, // padding
+      0, // padding
+
+      particleBatch.atlas?.sweep?.by !== 'column' ? 0 : 1,
+      (particleBatch.atlas?.sweep?.stepTime ?? 0) / 1000,
+      particleBatch.atlas?.sweep?.stepCount ?? 0,
       0, // padding
 
       ...world.toData(),
@@ -135,7 +140,7 @@ export class Emitter extends Entity {
       const { particleBatch, startTime, data } = this.batches[index];
       const lifeTime = particleBatch.lifeTime;
       const age = time - startTime;
-      const vertexCount = particleBatch.count * 3;
+      const vertexCount = particleBatch.count * 6;
 
       if (age > lifeTime + particleBatch.spawnDuration) {
         // remove batch

@@ -1,5 +1,6 @@
 import type { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
+import { GpuTimer } from "../gpuTimer/gpuTimer";
 
 /**
  * Particular is a class that represents an object to handle ad draw particle effects on the screen.
@@ -20,12 +21,12 @@ export class Engine {
 
   // Rendering
   private textureA: WebGLTexture;
-  private bufferA: WebGLFramebuffer;
   private textureB: WebGLTexture;
-  private bufferB: WebGLFramebuffer;
+  private buffer: WebGLFramebuffer;
 
   private currentRenderTarget: 'A' | 'B' = 'A';
   private postProcessingPipeline: ((sourceTexture: WebGLTexture) => void)[] = [];
+  timer: GpuTimer;
 
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
@@ -44,6 +45,8 @@ export class Engine {
     this.gl = gl;
     const ext = gl.getExtension('EXT_color_buffer_float');
 
+    this.timer = new GpuTimer(this)
+
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -56,9 +59,8 @@ export class Engine {
     this.canvas.height = this.resolution.y;
 
     this.textureA = this.createFrameTexture();
-    this.bufferA = this.createFrameBuffer();
     this.textureB = this.createFrameTexture();
-    this.bufferB = this.createFrameBuffer();
+    this.buffer = this.createFrameBuffer();
   }
 
   addScene(scene: Scene) {
@@ -69,16 +71,22 @@ export class Engine {
   /* Rendering */
   draw() {
     // render the scene
-    const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
+    const [targetTexture] = this.getCurrentRenderTarget();
     const hasPostProcessing = this.postProcessingPipeline.length > 0;
     if (hasPostProcessing) {
-      this.attachRenderTarget(targetTexture, targetBuffer);
+      this.attachRenderTarget(targetTexture, this.buffer);
+    } else {
+      this.resetRenderTarget();
     }
+
     this.clear();
+
+    this.gl.enable(this.gl.DEPTH_TEST);
     for (const scene of this.scenes) {
       scene.draw(this.time);
     }
     this.flipRenderTarget();
+    this.gl.disable(this.gl.DEPTH_TEST);
 
     // render the post-processing
     if (hasPostProcessing) {
@@ -89,10 +97,9 @@ export class Engine {
     this.currentRenderTarget = 'A';
   }
 
-  getCurrentRenderTarget(): [WebGLTexture, WebGLFramebuffer] {
+  getCurrentRenderTarget(): [WebGLTexture] {
     return [
       this.currentRenderTarget === 'A' ? this.textureA : this.textureB,
-      this.currentRenderTarget === 'A' ? this.bufferA : this.bufferB,
     ];
   }
 
@@ -124,7 +131,8 @@ export class Engine {
   }
 
   clear() {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    let mask = this.gl.COLOR_BUFFER_BIT;
+    this.gl.clear(mask);
   }
 
   /* Resize */
@@ -132,15 +140,12 @@ export class Engine {
     this.size = new Vec2(x, y);
     this.updateResolution();
 
-    console.log(this.resolution);
-
     this.canvas.width = this.resolution.x;
     this.canvas.height = this.resolution.y;
 
     this.textureA = this.createFrameTexture();
-    this.bufferA = this.createFrameBuffer();
     this.textureB = this.createFrameTexture();
-    this.bufferB = this.createFrameBuffer();
+    this.buffer = this.createFrameBuffer();
 
     for (const scene of this.scenes) {
       scene.setup();
@@ -173,10 +178,10 @@ export class Engine {
 
   postProcessing() {
     this.postProcessingPipeline.forEach((processor, index) => {
-      const [targetTexture, targetBuffer] = this.getCurrentRenderTarget();
+      const [targetTexture] = this.getCurrentRenderTarget();
       const sourceTexture = this.getCurrentRenderSource();
       if (index !== this.postProcessingPipeline.length - 1) {
-        this.attachRenderTarget(targetTexture, targetBuffer);
+        this.attachRenderTarget(targetTexture, this.buffer);
       } else {
         this.resetRenderTarget();
       }

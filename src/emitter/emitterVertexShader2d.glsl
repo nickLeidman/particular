@@ -26,6 +26,7 @@ layout(std140) uniform Emitter {
     float omega0;
     vec2 atlasSize;
     vec2 atlasOffset;
+    vec3 atlasSweepOptions;
     mat4 world;
     mat4 model;
 };
@@ -40,6 +41,8 @@ out float vRipeness;
 out vec2 aTexCoords;
 out vec2 vAtlasSize;
 out vec2 vAtlasOffset;
+out float vAge;
+out vec3 vAtlasSweepOptions;
 
 float noise2d(vec2 co, sampler2D sampler){
     // assuming the texture is 256x256, get the mod of the coordinates
@@ -60,16 +63,14 @@ float sampleNoiseNormalized(float index, float offset) {
 }
 
 void main() {
-    int localIndex = int(gl_VertexID) % 3;
-    float triangleIndex = float(int(gl_VertexID) / 3);
+    int localIndex = int(gl_VertexID) % 6;
+    float triangleIndex = float(int(gl_VertexID) / 6);
 
     float ageOffset = sampleNoise(triangleIndex, batchHash + 120.0) * -spawnDuration;
 
     float age = batchAge + ageOffset;
 
     float normalizedAge = age / lifetime;
-
-    float triangleSize = size * 2.0;
 
     /*Scale*/
     float ageScale = 1.0 - (pow(normalizedAge, 4.0) * scaleWithAge);
@@ -99,14 +100,22 @@ void main() {
     /* Initial Position */
     vec3 position = vec3(0.0, 0.0, 0.0);
     vPosition = vec2(0.0, 0.0);
-    if (localIndex == 0) {
-        position += vec3(-1.0/4.0 * triangleSize, -1.0/4.0 * triangleSize, 0);
+    float vertexOffset = 1.0/2.0 * size;
+    if (localIndex == 0 || localIndex == 3) {
+        // boottom-left, 0,0 uv
+        position += vec3(-vertexOffset, -vertexOffset, 0.0);
     } else if (localIndex == 1) {
-        position += vec3(-1.0/4.0 * triangleSize, 3.0/4.0 * triangleSize, 0);
-        vPosition = vec2(0.0, 2.0);
-    } else if (localIndex == 2) {
-        position += vec3(3.0/4.0 * triangleSize, -1.0/4.0 * triangleSize, 0);
-        vPosition = vec2(2.0, 0.0);
+        // bottom-right, 1,0 uv
+        position += vec3(vertexOffset, -vertexOffset, 0.0);
+        vPosition = vec2(1.0, 0.0);
+    } else if (localIndex == 2 || localIndex == 4) {
+        // top-right, 1,1 uv
+        position += vec3(vertexOffset, vertexOffset, 0.0);
+        vPosition = vec2(1.0, 1.0);
+    } if (localIndex == 5) {
+        // top-left, 0,1 uv
+        position += vec3(-vertexOffset, vertexOffset, 0.0);
+        vPosition = vec2(0.0, 1.0);
     }
 
     // bias spawn based on x y velocity
@@ -129,4 +138,6 @@ void main() {
     aTexCoords = vec2(position.x, position.y);
     vAtlasSize = atlasSize;
     vAtlasOffset = atlasOffset;
+    vAge = age;
+    vAtlasSweepOptions = atlasSweepOptions;
 }

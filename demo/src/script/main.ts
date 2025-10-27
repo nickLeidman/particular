@@ -10,7 +10,7 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
     lifeTime: getInputValue('lifeTime'),
     count: getInputValue('count'),
     size: 50,
-    aspectRatio: 1,
+    aspectRatio: getInputValue('aspectRatio'),
     origin: {x, y},
     v0: {x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0')},
     velocityBias: {x: 0, y: 0, z: 0},
@@ -23,7 +23,7 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
     area: getInputValue('A'),
     mass: getInputValue('m'),
     momentOfInertia: getInputValue('I'),
-    atlasTextureOffset: {column: 0, row: 0},
+    atlas: {offset: {column: 0, row: 0} },
     spawnSize: 20,
     scaleWithAge: 1
   };

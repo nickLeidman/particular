@@ -58,9 +58,12 @@ export interface ParticleBatchOptions {
   momentOfInertia: number;
   /**
    * Offset of the texture in the atlas
-   * @default { column: 0, row: 0 }
+   * @default { offset: { column: 0, row: 0 } }
   */
-  atlasTextureOffset: { column: number; row: number };
+  atlas: {
+    offset: { column: number; row: number },
+    sweep?: { by: 'column' | 'row', stepTime: number, stepCount: number }
+  };
   /**
    * Amount of scaling applied to a particle based on its age.
    * @default 0
@@ -76,7 +79,10 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
   aspectRatio: number
   velocityBias: { x: number; y: number; z: number }
   spawnDuration: number
-  atlasTextureOffset: { column: number; row: number }
+  atlas: {
+    offset: { column: number; row: number },
+    sweep?: { by: 'column' | 'row', stepTime: number, stepCount: number }
+  }
   scaleWithAge: number
   drag: number;
   angularDrag: number;
