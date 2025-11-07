@@ -1,5 +1,6 @@
+import { Emitter, Engine, type ParticleBatchOptions, QuadRenderer, Scene, TextureLoader } from '@nleidman/particular';
+import particleImage from '../img/particle_atlas.png';
 import MyWorker from './worker/worker?worker';
-import { ParticleBatchOptions } from '@nleidman/particular';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
@@ -11,11 +12,11 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
     count: getInputValue('count'),
     size: 50,
     aspectRatio: getInputValue('aspectRatio'),
-    origin: {x, y},
-    v0: {x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0')},
-    velocityBias: {x: 0, y: 0, z: 0},
+    origin: { x, y },
+    v0: { x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0') },
+    velocityBias: { x: 0, y: 0, z: 0 },
     omega0: getInputValue('omega0'),
-    gravity: {x: 0, y: getInputValue('g'), z: 0},
+    gravity: { x: 0, y: getInputValue('g'), z: 0 },
     spawnDuration: getInputValue('spawnDuration'),
     Cd: getInputValue('Cd'),
     Cr: getInputValue('Cr'),
@@ -23,9 +24,9 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
     area: getInputValue('A'),
     mass: getInputValue('m'),
     momentOfInertia: getInputValue('I'),
-    atlas: {offset: {column: 0, row: 0} },
+    atlas: { offset: { column: 0, row: 0 }, sweep: { by: 'row', stepTime: 1000 / 60, stepCount: 1 } },
     spawnSize: 20,
-    scaleWithAge: 1
+    scaleWithAge: 1,
   };
 };
 
@@ -46,56 +47,86 @@ const container = document.getElementById('root') as HTMLDivElement;
 const canvas = document.createElement('canvas');
 container.appendChild(canvas);
 
-/* New test ts worker */
-
-const worker = new MyWorker() as Worker;
-
-// listen for console-log events
-
-worker.addEventListener('message', (event) => {
-  console.log(event.data);
+const engine = new Engine(canvas, {
+  size: { x: container.clientWidth, y: container.clientHeight },
+  pixelRation: 2,
 });
 
-if (canvas.transferControlToOffscreen) {
-  const offscreen = canvas.transferControlToOffscreen();
-  worker.postMessage(
-    {
-      name: 'init',
-      canvas: offscreen,
-      size: {x: container.clientWidth, y: container.clientHeight},
-    },
-    [offscreen],
-  ); // Transfer control
-} else {
-  console.error('OffscreenCanvas is not supported in this browser.');
-}
+const quadDrawer = new QuadRenderer(engine);
+engine.attachPostProcessor((sourceTexture: WebGLTexture) => {
+  quadDrawer.draw(sourceTexture);
+});
+
+const scene = new Scene(engine);
+
+const emitter = new Emitter(engine, {
+  atlasLayout: { columns: 2, rows: 1 },
+  is2d: true,
+});
+
+const textureLoader = new TextureLoader(engine);
+textureLoader.load(particleImage).then((texture: WebGLTexture) => {
+  emitter.setTexture(texture);
+});
+
+scene.add(emitter);
+
+engine.start();
 
 container.addEventListener('click', (event) => {
-  worker.postMessage({
-    name: 'emit',
-    config: compileConfig(event.clientX, event.clientY),
-  });
+  emitter.emit(compileConfig(event.clientX, event.clientY));
 });
 
-window.addEventListener('keydown', (event) => {
-  if (event.key === 'p' || event.key === ' ') {
-    worker.postMessage({
-      name: 'togglePause',
-    });
-  } else if (event.key === 'ArrowLeft') {
-    worker.postMessage({
-      name: 'skipBackward',
-    });
-  } else if (event.key === 'ArrowRight') {
-    worker.postMessage({
-      name: 'skipForward',
-    });
-  }
-});
+/* New test ts worker */
 
-window.addEventListener('resize', () => {
-  worker.postMessage({
-    name: 'resize',
-    size: {x: container.clientWidth, y: container.clientHeight},
-  });
-});
+// const worker = new MyWorker() as Worker;
+//
+// // listen for console-log events
+//
+// worker.addEventListener('message', (event) => {
+//   console.log(event.data);
+// });
+//
+// if (canvas.transferControlToOffscreen) {
+//   const offscreen = canvas.transferControlToOffscreen();
+//   worker.postMessage(
+//     {
+//       name: 'init',
+//       canvas: offscreen,
+//       size: {x: container.clientWidth, y: container.clientHeight},
+//     },
+//     [offscreen],
+//   ); // Transfer control
+// } else {
+//   console.error('OffscreenCanvas is not supported in this browser.');
+// }
+//
+// container.addEventListener('click', (event) => {
+//   worker.postMessage({
+//     name: 'emit',
+//     config: compileConfig(event.clientX, event.clientY),
+//   });
+// });
+//
+// window.addEventListener('keydown', (event) => {
+//   if (event.key === 'p' || event.key === ' ') {
+//     worker.postMessage({
+//       name: 'togglePause',
+//     });
+//   } else if (event.key === 'ArrowLeft') {
+//     worker.postMessage({
+//       name: 'skipBackward',
+//     });
+//   } else if (event.key === 'ArrowRight') {
+//     worker.postMessage({
+//       name: 'skipForward',
+//     });
+//   }
+// });
+//
+// window.addEventListener('resize', () => {
+//   worker.postMessage({
+//     name: 'resize',
+//     size: {x: container.clientWidth, y: container.clientHeight},
+//   });
+// });

@@ -6,6 +6,7 @@ import emitterVertexShader from './emitterVertexShader.glsl';
 import emitterVertexShader2d from './emitterVertexShader2d.glsl';
 import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
 import { Entity } from '../entity/entity';
+// import { Vec2 } from "../vec2";
 
 const EMITTER_BINDING_POINT = 1;
 
@@ -23,7 +24,7 @@ export class Emitter extends Entity {
   ) {
     super(engine, engine.createProgramFromShaders(options.is2d ? emitterVertexShader2d : emitterVertexShader, emitterFragmentShader));
 
-    this.atlasLayout = this.options.atlasLayout ?? { rows: 1, columns: 1 }
+    this.atlasLayout = this.options.atlasLayout ?? { rows: 1, columns: 1 };
 
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
@@ -40,17 +41,21 @@ export class Emitter extends Entity {
     this.particleTexture = options.texture;
   }
 
+  setTexture(texture: WebGLTexture) {
+    this.particleTexture = texture;
+  }
+
   processParticleBatchOptions(options: ParticleBatchOptions): ParticleBatchProcessed {
     return {
       ...options,
       aspectRatio: options.aspectRatio ?? 0,
-      velocityBias: options.velocityBias ?? {x: 0, y: 0, z: 0},
+      velocityBias: options.velocityBias ?? { x: 0, y: 0, z: 0 },
       spawnDuration: options.spawnDuration ?? 0,
-      atlas: options.atlas ?? {offset: {column: 0, row: 0}},
+      atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
       scaleWithAge: options.scaleWithAge ?? 0,
       drag: (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
-    }
+    };
   }
 
   async emit(options: ParticleBatchOptions) {
@@ -110,10 +115,47 @@ export class Emitter extends Entity {
       throw new Error('Particle buffer data length must be divisible by 4');
     }
 
+    // const vVelocity = new Vec2(particleBatch.v0.x, particleBatch.v0.y);
+    // const vGravity = new Vec2(particleBatch.gravity.x, particleBatch.gravity.y);
+    //
+    // const getScissors = (time: number) => {
+    //   const k = particleBatch.drag; // Assume drag is already scaled as k = (Cd * rho * A) / (2 * mass)
+    //
+    //   // Compute velocity under drag influence
+    //   const vMag = vVelocity.length();
+    //   const vDir = vVelocity.normalize();
+    //
+    //   // Compute displacement with logarithmic slowdown
+    //   const displacement = vDir.scale((1.0 / k) * Math.log(1.0 + k * vMag * time));
+    //   let displacementPositive = displacement.multiply(new Vec2(1 + particleBatch.velocityBias.x, 1 + particleBatch.velocityBias.y));
+    //   let displacementNegative = displacement.multiply(new Vec2(-1 - particleBatch.velocityBias.x, -1 - particleBatch.velocityBias.y));
+    //
+    //
+    //   // Add acceleration term for external forces
+    //   displacementPositive = displacementPositive.add(vGravity.scale(time * time * 0.5));
+    //   displacementNegative = displacementNegative.add(vGravity.scale(time * time * 0.5));
+    //
+    //   const yFromTheBottom = this.engine.size.y - particleBatch.origin.y;
+    //
+    //
+    //   const scissorWidth = displacementPositive.x - displacementNegative.x;
+    //   const scissorHeight = displacementPositive.y - displacementNegative.y;
+    //   const scissorOriginX = particleBatch.origin.x + displacementNegative.x;
+    //   const scissorOriginY = yFromTheBottom + displacementNegative.y;
+    //
+    //   return {
+    //     width: scissorWidth * this.engine.pixelRatio,
+    //     height: scissorHeight * this.engine.pixelRatio,
+    //     x: scissorOriginX * this.engine.pixelRatio,
+    //     y: scissorOriginY * this.engine.pixelRatio,
+    //   };
+    // }
+
     this.batches.push({ particleBatch, data: particleBufferData, startTime });
   }
 
   draw(time: number) {
+    if (!this.particleTexture) return;
     const gl = this.engine.gl;
     if (this.batches.length === 0 || !this.particleTexture) {
       return;
@@ -126,8 +168,8 @@ export class Emitter extends Entity {
     gl.bindTexture(gl.TEXTURE_2D, this.noise);
     gl.uniform1i(uNoiseTextureLocation, 0); // Assign texture unit 0
 
+    // bind particle texture
     const uParticleTextureLocation = gl.getUniformLocation(this.program, 'uParticleTexture');
-
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.particleTexture);
     gl.uniform1i(uParticleTextureLocation, 1);
@@ -141,6 +183,11 @@ export class Emitter extends Entity {
       const lifeTime = particleBatch.lifeTime;
       const age = time - startTime;
       const vertexCount = particleBatch.count * 6;
+
+      // const scissors = getScissors(age/1000);
+      // // console.log(scissors);
+      // gl.scissor(scissors.x, scissors.y, scissors.width, scissors.height);
+      // gl.enable(gl.SCISSOR_TEST);
 
       if (age > lifeTime + particleBatch.spawnDuration) {
         // remove batch

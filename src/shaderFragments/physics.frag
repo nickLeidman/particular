@@ -4,7 +4,6 @@ vec3 displaceInFluid(vec3 velocity, vec3 acceleration, float time, float drag) {
     // Compute velocity under drag influence
     float vMag = length(velocity);
     vec3 vDir = normalize(velocity);
-    vec3 vFinal = vDir * (vMag / (1.0 + k * vMag * time));
 
     // Compute displacement with logarithmic slowdown
     vec3 displacement = (1.0 / k) * log(1.0 + k * vMag * time) * vDir;

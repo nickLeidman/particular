@@ -1,5 +1,5 @@
 import { Engine, Emitter, GaussianBlurShader, ParticleBatchOptions, Scene, TextureLoader, QuadRenderer } from '@nleidman/particular';
-import particleImage from '../../img/particle.png';
+import particleImage from '../../img/particle_atlas.png';
 
 interface InitMessage {
   name: 'init';
@@ -46,10 +46,9 @@ addEventListener('message', async (event) => {
 
     emitter = new Emitter(engine, {
       texture: texture,
-      atlasLayout: { columns: 1, rows: 1, },
+      atlasLayout: { columns: 2, rows: 1 },
       is2d: true,
     });
-
 
     scene.add(emitter);
 

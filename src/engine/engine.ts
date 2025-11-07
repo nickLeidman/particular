@@ -1,6 +1,6 @@
+import { GpuTimer } from '../gpuTimer/gpuTimer';
 import type { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
-import { GpuTimer } from "../gpuTimer/gpuTimer";
 
 /**
  * Particular is a class that represents an object to handle ad draw particle effects on the screen.
@@ -14,7 +14,7 @@ export class Engine {
   private scenes: Scene[] = [];
   public resolution: Vec2 = new Vec2(0, 0);
   public pixelRatio: number;
-  private size: Vec2;
+  public size: Vec2;
 
   private time = 0;
   private paused = true;
@@ -30,7 +30,7 @@ export class Engine {
 
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
-    options: { pixelRation: number; size: {x: number, y: number}; beforeSetup?: (gl: WebGLRenderingContext) => void },
+    options: { pixelRation: number; size: { x: number; y: number }; beforeSetup?: (gl: WebGLRenderingContext) => void },
   ) {
     this.pixelRatio = options.pixelRation;
     this.size = new Vec2(options.size.x, options.size.y);
@@ -45,7 +45,7 @@ export class Engine {
     this.gl = gl;
     const ext = gl.getExtension('EXT_color_buffer_float');
 
-    this.timer = new GpuTimer(this)
+    this.timer = new GpuTimer(this);
 
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -65,7 +65,6 @@ export class Engine {
 
   addScene(scene: Scene) {
     this.scenes.push(scene);
-    scene.setup();
   }
 
   /* Rendering */
@@ -98,9 +97,7 @@ export class Engine {
   }
 
   getCurrentRenderTarget(): [WebGLTexture] {
-    return [
-      this.currentRenderTarget === 'A' ? this.textureA : this.textureB,
-    ];
+    return [this.currentRenderTarget === 'A' ? this.textureA : this.textureB];
   }
 
   getCurrentRenderSource() {
@@ -120,7 +117,11 @@ export class Engine {
       previousTime = timestamp;
       if (this.paused) return;
       this.time += delta;
+      // this.timer.measure('draw',() => {
       this.draw();
+      // }, (label, nanoseconds) => {
+      //   console.log(nanoseconds/1_000_000)
+      // })
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
@@ -131,7 +132,7 @@ export class Engine {
   }
 
   clear() {
-    let mask = this.gl.COLOR_BUFFER_BIT;
+    const mask = this.gl.COLOR_BUFFER_BIT;
     this.gl.clear(mask);
   }
 
@@ -146,10 +147,6 @@ export class Engine {
     this.textureA = this.createFrameTexture();
     this.textureB = this.createFrameTexture();
     this.buffer = this.createFrameBuffer();
-
-    for (const scene of this.scenes) {
-      scene.setup();
-    }
 
     this.draw();
   }

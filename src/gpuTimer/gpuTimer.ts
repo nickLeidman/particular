@@ -1,7 +1,6 @@
-import { Engine } from "../engine/engine";
+import { Engine } from '../engine/engine';
 
 type TimerResultHandler = (label: string, nanoseconds: number) => void;
-
 
 export class GpuTimer {
   private gl: WebGL2RenderingContext;

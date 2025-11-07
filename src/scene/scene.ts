@@ -1,11 +1,13 @@
 import type { Engine } from '../engine/engine';
-import { M4 } from '../m4';
 import type { Entity } from '../entity/entity';
+import { M4 } from '../m4';
 
 export class Scene {
   private gl: WebGL2RenderingContext;
   private entities: Entity[] = [];
   private readonly perspective: null | number;
+  private projection: M4;
+  private view: M4;
 
   constructor(
     private engine: Engine,
@@ -16,37 +18,35 @@ export class Scene {
     this.engine = engine;
     this.gl = engine.gl;
     this.perspective = options?.perspective ?? null;
-  }
 
-  setup() {
     const gl = this.gl;
     const resolution = this.engine.resolution;
 
     this.engine.resetViewport();
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    let projection: M4;
-    let view: M4;
-
     if (this.perspective === null) {
       const longestDimension = Math.max(resolution.x, resolution.y);
-      projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, longestDimension * 2);
-      view = M4.translation(0, 0, -longestDimension);
+      this.projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, longestDimension * 2);
+      this.view = M4.translation(0, 0, -longestDimension);
     } else {
       // in case of perspective projection
       const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
-      projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 10);
+      this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 10);
       // move the camera back the distance and move origin back to 0x 0y
-      view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
+      this.view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
     }
 
     for (const entity of this.entities) {
-      entity.setup(projection, view);
+      entity.setup(this.projection, this.view);
     }
+
+    engine.addScene(this);
   }
 
   add(entity: Entity) {
     this.entities.push(entity);
+    entity.setup(this.projection, this.view);
   }
 
   // Update the scene.
