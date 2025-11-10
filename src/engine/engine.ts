@@ -48,7 +48,7 @@ export class Engine {
     this.timer = new GpuTimer(this);
 
     gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
+    gl.depthFunc(gl.LESS);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.clearColor(0, 0, 0, 0);
     options?.beforeSetup?.(this.gl);
@@ -132,7 +132,7 @@ export class Engine {
   }
 
   clear() {
-    const mask = this.gl.COLOR_BUFFER_BIT;
+    const mask = this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT | this.gl.STENCIL_BUFFER_BIT;
     this.gl.clear(mask);
   }
 
@@ -259,6 +259,15 @@ export class Engine {
     if (!framebuffer) {
       throw new Error('Failed to create framebuffer');
     }
+    const renderbuffer = gl.createRenderbuffer();
+    if (!renderbuffer) {
+      throw new Error('Failed to create renderbuffer');
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, this.resolution.x, this.resolution.y);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     return framebuffer;
   }
 

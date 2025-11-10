@@ -1,5 +1,5 @@
 import type { Engine } from '../engine/engine';
-import type { Entity } from '../entity/entity';
+import type { Entity } from '../entities/entity/entity';
 import { M4 } from '../m4';
 
 export class Scene {
@@ -32,7 +32,7 @@ export class Scene {
     } else {
       // in case of perspective projection
       const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
-      this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 0.1, this.perspective * 10);
+      this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 100, this.perspective * 2);
       // move the camera back the distance and move origin back to 0x 0y
       this.view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
     }

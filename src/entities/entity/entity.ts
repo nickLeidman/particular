@@ -1,5 +1,5 @@
-import { Engine } from '../engine/engine';
-import type { M4 } from '../m4';
+import { Engine } from '../../engine/engine';
+import type { M4 } from '../../m4';
 
 export abstract class Entity {
   protected readonly gl: WebGL2RenderingContext;

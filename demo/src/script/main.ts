@@ -1,6 +1,8 @@
-import { Emitter, Engine, type ParticleBatchOptions, QuadRenderer, Scene, TextureLoader } from '@nleidman/particular';
+import { Body, Emitter, Engine, ObjectLoader, type ParticleBatchOptions, QuadRenderer, Scene, TextureLoader } from '@nleidman/particular';
+import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
-import MyWorker from './worker/worker?worker';
+
+// import MyWorker from './worker/worker?worker';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
@@ -52,12 +54,18 @@ const engine = new Engine(canvas, {
   pixelRation: 2,
 });
 
+const loader = new ObjectLoader();
+
+const body = new Body(engine, loader.parseOBJ(cube).geometries);
+
 const quadDrawer = new QuadRenderer(engine);
 engine.attachPostProcessor((sourceTexture: WebGLTexture) => {
   quadDrawer.draw(sourceTexture);
 });
 
-const scene = new Scene(engine);
+const scene = new Scene(engine, {
+  perspective: 10000,
+});
 
 const emitter = new Emitter(engine, {
   atlasLayout: { columns: 2, rows: 1 },
@@ -70,6 +78,7 @@ textureLoader.load(particleImage).then((texture: WebGLTexture) => {
 });
 
 scene.add(emitter);
+// scene.add(body);
 
 engine.start();
 

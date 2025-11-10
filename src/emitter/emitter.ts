@@ -1,20 +1,31 @@
 import type { Engine } from '../engine/engine';
+import { Body } from '../entities';
+import { Entity } from '../entities/entity/entity';
+import { ObjectLoader } from '../loaders';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
+import { Vec3 } from '../vec3';
+import chair from './Chair.obj?raw';
+import coin from './coin.obj?raw';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import emitterVertexShader2d from './emitterVertexShader2d.glsl';
+import plane from './plane.obj?raw';
 import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
-import { Entity } from '../entity/entity';
-// import { Vec2 } from "../vec2";
 
 const EMITTER_BINDING_POINT = 1;
 
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
-  private noise: WebGLTexture;
+  private readonly noise: WebGLTexture;
+  // private readonly vbo: WebGLVertexArrayObject;
+  // private readonly vertexCount: number;
   private particleTexture?: WebGLTexture;
   private atlasLayout: { rows: number; columns: number };
+  private objects: {
+    vao: WebGLVertexArrayObject;
+    vertexCount: number;
+  }[];
 
   private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
 
@@ -23,6 +34,7 @@ export class Emitter extends Entity {
     private options: EmitterOptions,
   ) {
     super(engine, engine.createProgramFromShaders(options.is2d ? emitterVertexShader2d : emitterVertexShader, emitterFragmentShader));
+    const gl = this.gl;
 
     this.atlasLayout = this.options.atlasLayout ?? { rows: 1, columns: 1 };
 
@@ -34,11 +46,31 @@ export class Emitter extends Entity {
       throw new Error('Failed to create particleBuffer');
     }
     this.particleBuffer = particleBuffer;
-    this.gl.uniformBlockBinding(this.program, this.gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
-    this.gl.bindBufferBase(this.gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
-    this.gl.bufferData(this.gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, this.gl.DYNAMIC_DRAW);
+    gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
+    gl.bufferData(gl.UNIFORM_BUFFER, 44 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
+
+    const loader = new ObjectLoader();
+    const coinObject = loader.parseOBJ(chair);
+
+    this.objects = Body.createVAOs(engine, this.program, coinObject.geometries).objects;
+
+    // this.vbo = gl.createVertexArray();
+    // gl.bindVertexArray(this.vbo);
+    //
+    // const positionBuffer = gl.createBuffer();
+    // gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(SPRITE_POSITIONS), gl.STATIC_DRAW);
+    //
+    // const positionLocation = gl.getAttribLocation(this.program, 'aPosition');
+    // gl.enableVertexAttribArray(positionLocation);
+    // gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+    //
+    // gl.bindVertexArray(null);
+    //
+    // this.vertexCount = SPRITE_POSITIONS.length / 3;
   }
 
   setTexture(texture: WebGLTexture) {
@@ -60,7 +92,6 @@ export class Emitter extends Entity {
 
   async emit(options: ParticleBatchOptions) {
     const particleBatch = this.processParticleBatchOptions(options);
-    const particleMatrix = M4.scaling(particleBatch.aspectRatio * this.engine.pixelRatio, this.engine.pixelRatio, this.engine.pixelRatio);
     const world = M4.translation(particleBatch.origin.x * this.engine.pixelRatio, particleBatch.origin.y * this.engine.pixelRatio, 0);
     const startTime = this.engine.now();
 
@@ -108,7 +139,6 @@ export class Emitter extends Entity {
       0, // padding
 
       ...world.toData(),
-      ...particleMatrix.toData(),
     ]);
 
     if (particleBufferData.length % 4 !== 0) {
@@ -161,7 +191,6 @@ export class Emitter extends Entity {
       return;
     }
     gl.useProgram(this.program);
-    const offset = 0;
     // bind noise texture
     const uNoiseTextureLocation = gl.getUniformLocation(this.program, 'uNoiseTexture');
     gl.activeTexture(gl.TEXTURE0);
@@ -175,14 +204,18 @@ export class Emitter extends Entity {
     gl.uniform1i(uParticleTextureLocation, 1);
 
     if (this.options.is2d) {
-      gl.enable(gl.BLEND);
+      // gl.disable(gl.DEPTH_TEST);
+      // gl.enable(gl.BLEND);
+      // gl.disable(gl.CULL_FACE);
     }
+
+    const reverseLightDirectionLocation = gl.getUniformLocation(this.program, 'uReverseLightDirection');
+    gl.uniform3fv(reverseLightDirectionLocation, new Vec3(0, 0, 1).normalize().value);
 
     for (let index = 0; index < this.batches.length; index++) {
       const { particleBatch, startTime, data } = this.batches[index];
       const lifeTime = particleBatch.lifeTime;
       const age = time - startTime;
-      const vertexCount = particleBatch.count * 6;
 
       // const scissors = getScissors(age/1000);
       // // console.log(scissors);
@@ -202,10 +235,14 @@ export class Emitter extends Entity {
       gl.bindBuffer(gl.UNIFORM_BUFFER, this.particleBuffer);
       gl.bufferData(gl.UNIFORM_BUFFER, data, gl.DYNAMIC_DRAW);
 
-      gl.drawArrays(gl.TRIANGLES, offset, vertexCount);
+      this.objects.forEach(({ vao, vertexCount }) => {
+        gl.bindVertexArray(vao);
+        gl.drawArraysInstanced(gl.TRIANGLES, 0, vertexCount, particleBatch.count);
+      });
     }
 
     if (this.options.is2d) {
+      gl.enable(gl.DEPTH_TEST);
       this.engine.resetBlend();
     }
 

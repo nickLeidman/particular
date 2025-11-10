@@ -2,7 +2,8 @@
 
 precision mediump float;
 in float vColorSeed;
-in vec2 vPosition;
+in vec4 vPosition;
+in vec3 vNormal;
 in float vBorn;
 in float vBrightness;
 in float vRipeness;
@@ -12,6 +13,7 @@ in float vAge;
 in vec3 vAtlasSweepOptions;
 
 uniform sampler2D uParticleTexture;
+uniform vec3 uReverseLightDirection;
 
 out vec4 outColor;
 
@@ -33,9 +35,15 @@ void main() {
     vec2 offset = vAtlasSweepOptions.z != 0.0 ? sweep(vAtlasOffset, vAge, vAtlasSweepOptions) : vAtlasOffset;
     vec2 atlasStep = 1.0 / vAtlasSize;
     vec2 normalizedOffset = offset * atlasStep;
-    vec2 atlasCoords = vPosition * atlasStep + normalizedOffset;
+    vec2 atlasCoords = vec2(vPosition) * atlasStep + normalizedOffset;
 
     vec4 texColor = texture(uParticleTexture, atlasCoords);
 
-    outColor = vec4(texColor.xyz * vBrightness, texColor.a);
+    vec3 normal = normalize(vNormal);
+    float light = dot(normal, uReverseLightDirection);
+    outColor = vec4(0.1, 1, 0.1, 1.0);
+    outColor.rgb *= light;
+
+//    outColor = vec4(texColor.xyz * vBrightness, texColor.a);
+//    outColor = vec4(1.0, 0.0, 0.0, 1.0);
 }

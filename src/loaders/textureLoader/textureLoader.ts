@@ -1,4 +1,4 @@
-import type { Engine } from '../engine/engine';
+import type { Engine } from '../../engine/engine';
 
 export class TextureLoader {
   constructor(private engine: Engine) {}
