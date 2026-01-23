@@ -8,6 +8,7 @@ import { Vec2 } from '../vec2';
 export class Engine {
   static BindingPoints = {
     Camera: 0,
+    Lighting: 1,
   };
 
   readonly gl: WebGL2RenderingContext;
@@ -117,11 +118,15 @@ export class Engine {
       previousTime = timestamp;
       if (this.paused) return;
       this.time += delta;
-      // this.timer.measure('draw',() => {
+      // this.timer.measure(
+      //   'draw',
+      //   () => {
       this.draw();
-      // }, (label, nanoseconds) => {
-      //   console.log(nanoseconds/1_000_000)
-      // })
+      // },
+      // (label, nanoseconds) => {
+      //   console.log(nanoseconds / 1_000_000);
+      // },
+      // );
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);

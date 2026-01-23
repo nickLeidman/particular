@@ -3,7 +3,7 @@
 #include ../shaderFragments/transform.frag
 #include ../shaderFragments/physics.frag
 
-precision mediump float;
+precision highp float;
 
 in vec4 aPosition;
 in vec3 aNormal;
@@ -12,6 +12,7 @@ in vec2 aTexcoord;
 layout(std140) uniform Camera {
     mat4 projection;
     mat4 view;
+    vec3 viewPosition;
 };
 
 layout(std140) uniform Emitter {
@@ -37,7 +38,9 @@ layout(std140) uniform Emitter {
 uniform sampler2D uNoiseTexture;
 
 out vec4 vPosition;
+out vec3 vFragmentPosition;
 out vec3 vNormal;
+out vec3 vViewPosition;
 out float vBorn;
 out float vBrightness;
 out float vColorSeed;
@@ -82,7 +85,14 @@ void main() {
 
     /*Rotation*/
     float startAngle = sampleNoiseNormalized(instanceIndex, batchHash + 10.0) * 2.0 * 3.14159;
-    float angularVelocity = sampleNoise(instanceIndex, batchHash + 100.0) * omega0 * 2.0 - omega0;
+
+    float omegaVariance = 1.0;
+
+    float angularVelocitySpawnDistribution = sampleNoise(instanceIndex, batchHash + 100.0) * 2.0 - 1.0;
+    float angularVelocityDirection = sign(angularVelocitySpawnDistribution);
+    float angularVelocityVarianceAmmount = (abs(angularVelocitySpawnDistribution) * 2.0 - 1.0) * omegaVariance / 2.0;
+
+    float angularVelocity = angularVelocityDirection * (omega0 + (omega0 * angularVelocityVarianceAmmount));
     float rotationAngle = rotateInFluid(startAngle, angularVelocity, 0.0, age, angularDrag);
     mat4 rotationMatrix = rotate(
         mat4(1.0),
@@ -100,29 +110,27 @@ void main() {
         (sampleNoiseNormalized(instanceIndex, batchHash + 50.0) + velocityBias.y) * v0.z
     );
 
-    /* Initial Position */
-    vec4 position = aPosition;
-
     // bias spawn based on x y velocity
     vec3 spawnBias = normalize(velocity);
     vec3 spawnDisplacement = spawnBias * spawnSize;
 
-//    mat4 newWorld = world ;
+    mat4 model = translate(translate(world, displaceInFluid(velocity, gravity, age, drag)), spawnDisplacement) * scaleMatrix * rotationMatrix;
 
-    mat4 world = translate(translate(world, displaceInFluid(velocity, gravity, age, drag)), spawnDisplacement) * scaleMatrix * rotationMatrix;
+    vFragmentPosition = vec3(model * aPosition);
 
-    vec4 newPosition = projection * view * world * position;
+    vec4 newPosition = projection * view * model * aPosition;
     gl_Position = newPosition;
 
     vColorSeed = sampleNoiseNormalized(instanceIndex, batchHash + 200.0);
     vBrightness = 1.0;
     vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
     vBorn = float(age >= 0.0 && ageScale > 0.0);
-    aTexCoords = vec2(position.x, position.y);
+    aTexCoords = vec2(aPosition);
     vAtlasSize = atlasSize;
     vAtlasOffset = atlasOffset;
     vAge = age;
     vAtlasSweepOptions = atlasSweepOptions;
-    vPosition = aPosition; // vec2(aPosition.x / 2.0 +.5, aPosition.y / 2.0 + 0.5);
-    vNormal = mat3(transpose(inverse(world))) * aNormal;
+    vPosition = aPosition;
+    vNormal = mat3(transpose(inverse(model))) * aNormal;;
+    vViewPosition = viewPosition;
 }

@@ -1,5 +1,6 @@
 import { Engine } from '../../engine/engine';
 import type { M4 } from '../../m4';
+import type { Vec3 } from '../../vec3';
 
 export abstract class Entity {
   protected readonly gl: WebGL2RenderingContext;
@@ -14,7 +15,7 @@ export abstract class Entity {
 
   abstract draw(time: number): void;
 
-  setup(projection: M4, view: M4) {
+  setup(projection: M4, view: M4, viewPosition: Vec3) {
     const gl = this.gl;
     gl.useProgram(this.program);
 
@@ -27,7 +28,7 @@ export abstract class Entity {
 
     gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Camera, cameraBuffer);
 
-    const cameraData = new Float32Array([...projection.toData(), ...view.toData()]);
+    const cameraData = new Float32Array([...projection.toData(), ...view.toData(), ...viewPosition.value, 0]);
 
     gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
   }

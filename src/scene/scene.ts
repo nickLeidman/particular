@@ -1,6 +1,7 @@
 import type { Engine } from '../engine/engine';
 import type { Entity } from '../entities/entity/entity';
 import { M4 } from '../m4';
+import { Vec3 } from '../vec3';
 
 export class Scene {
   private gl: WebGL2RenderingContext;
@@ -8,6 +9,7 @@ export class Scene {
   private readonly perspective: null | number;
   private projection: M4;
   private view: M4;
+  private viewPosition: Vec3;
 
   constructor(
     private engine: Engine,
@@ -29,16 +31,18 @@ export class Scene {
       const longestDimension = Math.max(resolution.x, resolution.y);
       this.projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, longestDimension * 2);
       this.view = M4.translation(0, 0, -longestDimension);
+      this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, 0);
     } else {
       // in case of perspective projection
       const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
       this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 100, this.perspective * 2);
       // move the camera back the distance and move origin back to 0x 0y
       this.view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
+      this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, this.perspective);
     }
 
     for (const entity of this.entities) {
-      entity.setup(this.projection, this.view);
+      entity.setup(this.projection, this.view, this.viewPosition);
     }
 
     engine.addScene(this);
@@ -46,7 +50,7 @@ export class Scene {
 
   add(entity: Entity) {
     this.entities.push(entity);
-    entity.setup(this.projection, this.view);
+    entity.setup(this.projection, this.view, this.viewPosition);
   }
 
   // Update the scene.

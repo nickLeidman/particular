@@ -1,4 +1,4 @@
-import { Engine, Emitter, GaussianBlurShader, ParticleBatchOptions, Scene, TextureLoader, QuadRenderer } from '@nleidman/particular';
+import { Emitter, Engine, GaussianBlurShader, type ParticleBatchOptions, QuadRenderer, Scene, TextureLoader } from '@nleidman/particular';
 import particleImage from '../../img/particle_atlas.png';
 
 interface InitMessage {
@@ -38,8 +38,10 @@ addEventListener('message', async (event) => {
     // engine.attachPostProcessor((sourceTexture) => {
     //   gaussianShader.draw(sourceTexture)
     // })
-
-    const scene = new Scene(engine);
+    //
+    // const scene = new Scene(engine, {
+    //   perspective: 4000,
+    // });
 
     const textureLoader = new TextureLoader(engine);
     const texture = await textureLoader.load(particleImage);

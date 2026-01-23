@@ -2,7 +2,7 @@ import { Body, Emitter, Engine, ObjectLoader, type ParticleBatchOptions, QuadRen
 import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
 
-// import MyWorker from './worker/worker?worker';
+import MyWorker from './worker/worker?worker';
 
 function getInputValue(id: string) {
   return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
@@ -12,7 +12,7 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
   return {
     lifeTime: getInputValue('lifeTime'),
     count: getInputValue('count'),
-    size: 50,
+    size: 30,
     aspectRatio: getInputValue('aspectRatio'),
     origin: { x, y },
     v0: { x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0') },
@@ -27,7 +27,7 @@ const compileConfig = (x: number, y: number): ParticleBatchOptions => {
     mass: getInputValue('m'),
     momentOfInertia: getInputValue('I'),
     atlas: { offset: { column: 0, row: 0 }, sweep: { by: 'row', stepTime: 1000 / 60, stepCount: 1 } },
-    spawnSize: 20,
+    spawnSize: 40,
     scaleWithAge: 1,
   };
 };
@@ -58,10 +58,10 @@ const loader = new ObjectLoader();
 
 const body = new Body(engine, loader.parseOBJ(cube).geometries);
 
-const quadDrawer = new QuadRenderer(engine);
-engine.attachPostProcessor((sourceTexture: WebGLTexture) => {
-  quadDrawer.draw(sourceTexture);
-});
+// const quadDrawer = new QuadRenderer(engine);
+// engine.attachPostProcessor((sourceTexture: WebGLTexture) => {
+//   quadDrawer.draw(sourceTexture);
+// });
 
 const scene = new Scene(engine, {
   perspective: 10000,
@@ -102,7 +102,7 @@ container.addEventListener('click', (event) => {
 //     {
 //       name: 'init',
 //       canvas: offscreen,
-//       size: {x: container.clientWidth, y: container.clientHeight},
+//       size: { x: container.clientWidth, y: container.clientHeight },
 //     },
 //     [offscreen],
 //   ); // Transfer control
@@ -136,6 +136,6 @@ container.addEventListener('click', (event) => {
 // window.addEventListener('resize', () => {
 //   worker.postMessage({
 //     name: 'resize',
-//     size: {x: container.clientWidth, y: container.clientHeight},
+//     size: { x: container.clientWidth, y: container.clientHeight },
 //   });
 // });

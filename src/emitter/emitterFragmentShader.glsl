@@ -1,9 +1,12 @@
 #version 300 es
 
-precision mediump float;
+precision highp float;
+
 in float vColorSeed;
 in vec4 vPosition;
+in vec3 vFragmentPosition;
 in vec3 vNormal;
+in vec3 vViewPosition;
 in float vBorn;
 in float vBrightness;
 in float vRipeness;
@@ -13,7 +16,7 @@ in float vAge;
 in vec3 vAtlasSweepOptions;
 
 uniform sampler2D uParticleTexture;
-uniform vec3 uReverseLightDirection;
+uniform vec3 uLightPosition;
 
 out vec4 outColor;
 
@@ -32,6 +35,13 @@ void main() {
         discard;
     }
 
+    vec3 lightColor = vec3(0.8, 0.8, 0.8);
+
+    float ambientStrength = 0.7;
+    float diffuseStrength = 0.8;
+    float specularStrength = 2.0;
+    vec3 ambient = ambientStrength * lightColor;
+
     vec2 offset = vAtlasSweepOptions.z != 0.0 ? sweep(vAtlasOffset, vAge, vAtlasSweepOptions) : vAtlasOffset;
     vec2 atlasStep = 1.0 / vAtlasSize;
     vec2 normalizedOffset = offset * atlasStep;
@@ -40,10 +50,20 @@ void main() {
     vec4 texColor = texture(uParticleTexture, atlasCoords);
 
     vec3 normal = normalize(vNormal);
-    float light = dot(normal, uReverseLightDirection);
-    outColor = vec4(0.1, 1, 0.1, 1.0);
-    outColor.rgb *= light;
+    vec3 lightDirection = normalize(uLightPosition - vFragmentPosition);
+    float diff = abs(dot(normal, lightDirection));
+    vec3 diffuse = diffuseStrength * diff * lightColor;
 
-//    outColor = vec4(texColor.xyz * vBrightness, texColor.a);
-//    outColor = vec4(1.0, 0.0, 0.0, 1.0);
+    vec3 viewDirection = normalize(vViewPosition - vFragmentPosition);
+    vec3 reflectDirection = reflect(-lightDirection, normal);
+    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0), 64.0);
+    vec3 specular = specularStrength * spec * lightColor;
+
+    vec3 objectColor = vec3(1.0, 0.8, 0.1);
+
+    vec3 result = (ambient + diffuse + specular) * objectColor;
+    outColor = vec4(result, 1.0);
+
+//    vec3 result = vec3(1.0, 0.8, 0.1);
+//    outColor = vec4(result, 1.0);
 }

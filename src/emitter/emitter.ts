@@ -7,9 +7,11 @@ import { Noise } from '../noise/noise';
 import { Vec3 } from '../vec3';
 import chair from './Chair.obj?raw';
 import coin from './coin.obj?raw';
+import coin2 from './coin2.obj?raw';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import emitterVertexShader2d from './emitterVertexShader2d.glsl';
+import coinPP from './PP-coin.obj?raw';
 import plane from './plane.obj?raw';
 import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
 
@@ -53,9 +55,11 @@ export class Emitter extends Entity {
     this.particleTexture = options.texture;
 
     const loader = new ObjectLoader();
-    const coinObject = loader.parseOBJ(chair);
+    const coinObject = loader.parseOBJ(coinPP);
 
     this.objects = Body.createVAOs(engine, this.program, coinObject.geometries).objects;
+
+    console.log(this.objects);
 
     // this.vbo = gl.createVertexArray();
     // gl.bindVertexArray(this.vbo);
@@ -92,7 +96,11 @@ export class Emitter extends Entity {
 
   async emit(options: ParticleBatchOptions) {
     const particleBatch = this.processParticleBatchOptions(options);
-    const world = M4.translation(particleBatch.origin.x * this.engine.pixelRatio, particleBatch.origin.y * this.engine.pixelRatio, 0);
+    const world = M4.translation(
+      particleBatch.origin.x * this.engine.pixelRatio,
+      this.engine.resolution.y - particleBatch.origin.y * this.engine.pixelRatio,
+      0,
+    );
     const startTime = this.engine.now();
 
     // particle buffer data, structured using std140 layout
@@ -209,8 +217,8 @@ export class Emitter extends Entity {
       // gl.disable(gl.CULL_FACE);
     }
 
-    const reverseLightDirectionLocation = gl.getUniformLocation(this.program, 'uReverseLightDirection');
-    gl.uniform3fv(reverseLightDirectionLocation, new Vec3(0, 0, 1).normalize().value);
+    const lightPositionLocation = gl.getUniformLocation(this.program, 'uLightPosition');
+    gl.uniform3fv(lightPositionLocation, new Vec3(this.engine.resolution.x / 2, this.engine.resolution.y / 2, 10000).value);
 
     for (let index = 0; index < this.batches.length; index++) {
       const { particleBatch, startTime, data } = this.batches[index];
@@ -242,8 +250,8 @@ export class Emitter extends Entity {
     }
 
     if (this.options.is2d) {
-      gl.enable(gl.DEPTH_TEST);
-      this.engine.resetBlend();
+      // gl.enable(gl.DEPTH_TEST);
+      // this.engine.resetBlend();
     }
 
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
