@@ -55,11 +55,9 @@ export class Emitter extends Entity {
     this.particleTexture = options.texture;
 
     const loader = new ObjectLoader();
-    const coinObject = loader.parseOBJ(coinPP);
+    const coinObject = loader.parseOBJ(plane);
 
     this.objects = Body.createVAOs(engine, this.program, coinObject.geometries).objects;
-
-    console.log(this.objects);
 
     // this.vbo = gl.createVertexArray();
     // gl.bindVertexArray(this.vbo);
@@ -95,6 +93,7 @@ export class Emitter extends Entity {
   }
 
   async emit(options: ParticleBatchOptions) {
+    console.log("emit", this.objects);
     const particleBatch = this.processParticleBatchOptions(options);
     const world = M4.translation(
       particleBatch.origin.x * this.engine.pixelRatio,

@@ -32,7 +32,7 @@ layout(std140) uniform Emitter {
 uniform sampler2D uNoiseTexture;
 
 out vec2 vPosition;
-out float vBorn;
+flat out float vBorn;
 out float vBrightness;
 out float vColorSeed;
 out float vRipeness;

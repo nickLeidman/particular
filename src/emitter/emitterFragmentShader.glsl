@@ -7,7 +7,7 @@ in vec4 vPosition;
 in vec3 vFragmentPosition;
 in vec3 vNormal;
 in vec3 vViewPosition;
-in float vBorn;
+flat in float vBorn;
 in float vBrightness;
 in float vRipeness;
 in vec2 vAtlasSize;

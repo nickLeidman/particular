@@ -41,7 +41,7 @@ out vec4 vPosition;
 out vec3 vFragmentPosition;
 out vec3 vNormal;
 out vec3 vViewPosition;
-out float vBorn;
+flat out float vBorn;
 out float vBrightness;
 out float vColorSeed;
 out float vRipeness;

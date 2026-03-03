@@ -1,49 +1,118 @@
-import { Body, Emitter, Engine, ObjectLoader, type ParticleBatchOptions, QuadRenderer, Scene, TextureLoader } from '@nleidman/particular';
+import { Emitter, Engine, ObjectLoader, type ParticleBatchOptions, Scene, TextureLoader } from '@nleidman/particular';
 import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
+import { Pane } from 'tweakpane';
+import { createPersistentParams, resetParamsToDefaults } from './persistParams';
 
-import MyWorker from './worker/worker?worker';
+/* ——— Params (single source of truth for emitter batch options) ——— */
 
-function getInputValue(id: string) {
-  return (document.getElementById(id) as HTMLInputElement).valueAsNumber;
+const params = createPersistentParams();
+
+function compileConfig(originX: number, originY: number): ParticleBatchOptions {
+  const p = params.particle;
+  const ph = params.physics;
+  const a = params.atlas;
+  return {
+    lifeTime: p.lifeTime,
+    count: p.count,
+    size: p.size,
+    aspectRatio: p.aspectRatio,
+    origin: { x: originX, y: originY },
+    v0: { ...p.v0 },
+    velocityBias: { x: 0, y: 0, z: 0 },
+    omega0: p.omega0,
+    gravity: { x: p.gravityX, y: p.gravityY, z: p.gravityZ },
+    spawnDuration: p.spawnDuration,
+    Cd: ph.Cd,
+    Cr: ph.Cr,
+    density: ph.ro / 1000 ** 3,
+    area: ph.area,
+    mass: ph.mass,
+    momentOfInertia: ph.momentOfInertia,
+    atlas: {
+      offset: { column: a.column, row: a.row },
+      sweep: { by: a.sweepBy, stepTime: a.sweepStepTime, stepCount: a.sweepStepCount },
+    },
+    spawnSize: p.spawnSize,
+    scaleWithAge: p.scaleWithAge,
+  };
 }
 
-const compileConfig = (x: number, y: number): ParticleBatchOptions => {
-  return {
-    lifeTime: getInputValue('lifeTime'),
-    count: getInputValue('count'),
-    size: 30,
-    aspectRatio: getInputValue('aspectRatio'),
-    origin: { x, y },
-    v0: { x: getInputValue('v0'), y: getInputValue('v0'), z: getInputValue('v0') },
-    velocityBias: { x: 0, y: 0, z: 0 },
-    omega0: getInputValue('omega0'),
-    gravity: { x: 0, y: getInputValue('g'), z: 0 },
-    spawnDuration: getInputValue('spawnDuration'),
-    Cd: getInputValue('Cd'),
-    Cr: getInputValue('Cr'),
-    density: getInputValue('ro') / 1000 ** 3,
-    area: getInputValue('A'),
-    mass: getInputValue('m'),
-    momentOfInertia: getInputValue('I'),
-    atlas: { offset: { column: 0, row: 0 }, sweep: { by: 'row', stepTime: 1000 / 60, stepCount: 1 } },
-    spawnSize: 40,
-    scaleWithAge: 1,
-  };
+/* ——— Tweakpane (floating) ——— */
+
+const pane = new Pane({ title: 'Emitter' });
+pane.element.classList.add('pane-floating');
+document.body.appendChild(pane.element);
+
+// Tweakpane 4 types don't expose FolderApi methods on Pane; they exist at runtime
+type BindingApi = { refresh: () => void };
+type PaneLike = {
+  addFolder: (opts: { title: string; expanded?: boolean }) => PaneLike;
+  addBinding: (obj: object, key: string, opts?: object) => BindingApi;
+  addButton: (opts: { title: string }) => { on: (ev: string, fn: () => void) => void };
 };
+const api: PaneLike = pane as unknown as PaneLike;
 
-/* Export */
+const bindings: BindingApi[] = [];
 
-const extractButton = document.getElementById('extractConfig') as HTMLButtonElement;
+function addBinding(
+  folder: PaneLike,
+  obj: object,
+  key: string,
+  opts?: object,
+): BindingApi {
+  const b = folder.addBinding(obj, key, opts);
+  bindings.push(b);
+  return b;
+}
 
-extractButton.addEventListener('click', () => {
-  const config = compileConfig(0, 0);
-  const configString = JSON.stringify(config, null, 2);
-  // copy to clipboard
-  navigator.clipboard.writeText(configString);
+const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
+addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, step: 100, label: 'lifetime (ms)' });
+addBinding(particleFolder, params.particle, 'count', { min: 1, max: 2000, step: 10, label: 'count' });
+addBinding(particleFolder, params.particle, 'size', { min: 1, max: 500, step: 1, label: 'size (px)' });
+addBinding(particleFolder, params.particle, 'aspectRatio', { min: 0.1, max: 5, step: 0.1, label: 'aspect ratio' });
+addBinding(particleFolder, params.particle.v0, 'x', { min: 0, max: 10000, step: 100, label: 'v0.x (px/s)' });
+addBinding(particleFolder, params.particle.v0, 'y', { min: 0, max: 10000, step: 100, label: 'v0.y (px/s)' });
+addBinding(particleFolder, params.particle.v0, 'z', { min: 0, max: 10000, step: 100, label: 'v0.z (px/s)' });
+addBinding(particleFolder, params.particle, 'omega0', { min: 0, max: 50, step: 0.5, label: 'omega0 (rad/s)' });
+addBinding(particleFolder, params.particle, 'gravityX', { min: -5000, max: 5000, step: 100, label: 'gravity.x' });
+addBinding(particleFolder, params.particle, 'gravityY', { min: -5000, max: 5000, step: 100, label: 'gravity.y' });
+addBinding(particleFolder, params.particle, 'gravityZ', { min: -5000, max: 5000, step: 100, label: 'gravity.z' });
+addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, max: 2000, step: 50, label: 'spawn duration (ms)' });
+addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, max: 200, step: 5, label: 'spawn size (px)' });
+addBinding(particleFolder, params.particle, 'scaleWithAge', { min: 0, max: 2, step: 0.1, label: 'scale with age' });
+
+const physicsFolder = api.addFolder({ title: 'Physics', expanded: true });
+addBinding(physicsFolder, params.physics, 'Cd', { min: 0, max: 5, step: 0.1, label: 'drag coeff' });
+addBinding(physicsFolder, params.physics, 'Cr', { min: 0, max: 5, step: 0.1, label: 'angular drag' });
+addBinding(physicsFolder, params.physics, 'ro', { min: 0, max: 2, step: 0.01, label: 'fluid density' });
+addBinding(physicsFolder, params.physics, 'area', { min: 0, max: 2000, step: 50, label: 'area (px²)' });
+addBinding(physicsFolder, params.physics, 'mass', { min: 1e-7, max: 0.01, step: 1e-6, label: 'mass (kg)' });
+addBinding(physicsFolder, params.physics, 'momentOfInertia', { min: 1e-7, max: 0.01, step: 1e-6, label: 'moment of inertia' });
+
+const atlasFolder = api.addFolder({ title: 'Atlas', expanded: false });
+addBinding(atlasFolder, params.atlas, 'column', { min: 0, max: 16, step: 1, label: 'offset column' });
+addBinding(atlasFolder, params.atlas, 'row', { min: 0, max: 16, step: 1, label: 'offset row' });
+addBinding(atlasFolder, params.atlas, 'sweepBy', {
+  options: { row: 'row', column: 'column' },
+  label: 'sweep by',
+});
+addBinding(atlasFolder, params.atlas, 'sweepStepTime', { min: 0, max: 200, step: 1, label: 'sweep step (ms)' });
+addBinding(atlasFolder, params.atlas, 'sweepStepCount', { min: 1, max: 32, step: 1, label: 'sweep steps' });
+
+api.addButton({ title: 'Reset to defaults' }).on('click', () => {
+  resetParamsToDefaults(params);
+  bindings.forEach((b) => {
+    b.refresh();
+  });
 });
 
-/* Particular */
+api.addButton({ title: 'Copy config JSON' }).on('click', () => {
+  const config = compileConfig(0, 0);
+  navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+});
+
+/* ——— Engine, scene, emitter ——— */
 
 const container = document.getElementById('root') as HTMLDivElement;
 const canvas = document.createElement('canvas');
@@ -55,17 +124,9 @@ const engine = new Engine(canvas, {
 });
 
 const loader = new ObjectLoader();
+loader.parseOBJ(cube); // keep for possible future body use
 
-const body = new Body(engine, loader.parseOBJ(cube).geometries);
-
-// const quadDrawer = new QuadRenderer(engine);
-// engine.attachPostProcessor((sourceTexture: WebGLTexture) => {
-//   quadDrawer.draw(sourceTexture);
-// });
-
-const scene = new Scene(engine, {
-  perspective: 10000,
-});
+const scene = new Scene(engine, { perspective: 10000 });
 
 const emitter = new Emitter(engine, {
   atlasLayout: { columns: 2, rows: 1 },
@@ -78,64 +139,25 @@ textureLoader.load(particleImage).then((texture: WebGLTexture) => {
 });
 
 scene.add(emitter);
-// scene.add(body);
-
 engine.start();
 
-container.addEventListener('click', (event) => {
+container.addEventListener('click', (event: MouseEvent) => {
   emitter.emit(compileConfig(event.clientX, event.clientY));
 });
 
-/* New test ts worker */
+window.addEventListener('keydown', (event: KeyboardEvent) => {
+  if (event.key === 'p' || event.key === ' ') {
+    event.preventDefault();
+    engine.togglePause();
+  }
+  if (event.key === 'ArrowLeft') {
+    engine.skip(-20);
+  }
+  if (event.key === 'ArrowRight') {
+    engine.skip(20);
+  }
+});
 
-// const worker = new MyWorker() as Worker;
-//
-// // listen for console-log events
-//
-// worker.addEventListener('message', (event) => {
-//   console.log(event.data);
-// });
-//
-// if (canvas.transferControlToOffscreen) {
-//   const offscreen = canvas.transferControlToOffscreen();
-//   worker.postMessage(
-//     {
-//       name: 'init',
-//       canvas: offscreen,
-//       size: { x: container.clientWidth, y: container.clientHeight },
-//     },
-//     [offscreen],
-//   ); // Transfer control
-// } else {
-//   console.error('OffscreenCanvas is not supported in this browser.');
-// }
-//
-// container.addEventListener('click', (event) => {
-//   worker.postMessage({
-//     name: 'emit',
-//     config: compileConfig(event.clientX, event.clientY),
-//   });
-// });
-//
-// window.addEventListener('keydown', (event) => {
-//   if (event.key === 'p' || event.key === ' ') {
-//     worker.postMessage({
-//       name: 'togglePause',
-//     });
-//   } else if (event.key === 'ArrowLeft') {
-//     worker.postMessage({
-//       name: 'skipBackward',
-//     });
-//   } else if (event.key === 'ArrowRight') {
-//     worker.postMessage({
-//       name: 'skipForward',
-//     });
-//   }
-// });
-//
-// window.addEventListener('resize', () => {
-//   worker.postMessage({
-//     name: 'resize',
-//     size: { x: container.clientWidth, y: container.clientHeight },
-//   });
-// });
+window.addEventListener('resize', () => {
+  engine.resize(container.clientWidth, container.clientHeight);
+});
