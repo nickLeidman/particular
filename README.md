@@ -26,7 +26,7 @@ const engine = new Engine(canvas, { x: window.innerWidth, y: window.innerHeight 
 
 const scene = new Scene(engine);
 
-const emitter = new Emitter(engine, { texture: texture, is2d: true});
+const emitter = new Emitter(engine, { texture: texture, orientation: 'billboard' });
 
 scene.add(emitter);
 

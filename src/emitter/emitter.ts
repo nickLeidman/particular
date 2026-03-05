@@ -5,13 +5,8 @@ import { ObjectLoader } from '../loaders';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
 import { Vec3 } from '../vec3';
-import chair from './Chair.obj?raw';
-import coin from './coin.obj?raw';
-import coin2 from './coin2.obj?raw';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
-import emitterVertexShader2d from './emitterVertexShader2d.glsl';
-import coinPP from './PP-coin.obj?raw';
 import plane from './plane.obj?raw';
 import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
 
@@ -29,13 +24,19 @@ export class Emitter extends Entity {
     vertexCount: number;
   }[];
 
+  private readonly uNoiseTexture: WebGLUniformLocation | null;
+  private readonly uParticleTexture: WebGLUniformLocation | null;
+  private readonly uBillboard: WebGLUniformLocation | null;
+  private readonly uUseLighting: WebGLUniformLocation | null;
+  private readonly uLightPosition: WebGLUniformLocation | null;
+
   private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
 
   constructor(
     engine: Engine,
     private options: EmitterOptions,
   ) {
-    super(engine, engine.createProgramFromShaders(options.is2d ? emitterVertexShader2d : emitterVertexShader, emitterFragmentShader));
+    super(engine, engine.createProgramFromShaders(emitterVertexShader, emitterFragmentShader));
     const gl = this.gl;
 
     this.atlasLayout = this.options.atlasLayout ?? { rows: 1, columns: 1 };
@@ -54,10 +55,16 @@ export class Emitter extends Entity {
 
     this.particleTexture = options.texture;
 
-    const loader = new ObjectLoader();
-    const coinObject = loader.parseOBJ(plane);
+    this.uNoiseTexture = gl.getUniformLocation(this.program, 'uNoiseTexture');
+    this.uParticleTexture = gl.getUniformLocation(this.program, 'uParticleTexture');
+    this.uBillboard = gl.getUniformLocation(this.program, 'uBillboard');
+    this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
+    this.uLightPosition = gl.getUniformLocation(this.program, 'uLightPosition');
 
-    this.objects = Body.createVAOs(engine, this.program, coinObject.geometries).objects;
+    const geometries =
+      options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
+
+    this.objects = Body.createVAOs(engine, this.program, geometries).objects;
 
     // this.vbo = gl.createVertexArray();
     // gl.bindVertexArray(this.vbo);
@@ -79,6 +86,14 @@ export class Emitter extends Entity {
     this.particleTexture = texture;
   }
 
+  setUseLighting(use: boolean) {
+    this.options.useLighting = use;
+  }
+
+  setUseAlphaBlending(use: boolean) {
+    this.options.useAlphaBlending = use;
+  }
+
   processParticleBatchOptions(options: ParticleBatchOptions): ParticleBatchProcessed {
     return {
       ...options,
@@ -93,7 +108,6 @@ export class Emitter extends Entity {
   }
 
   async emit(options: ParticleBatchOptions) {
-    console.log("emit", this.objects);
     const particleBatch = this.processParticleBatchOptions(options);
     const world = M4.translation(
       particleBatch.origin.x * this.engine.pixelRatio,
@@ -192,32 +206,35 @@ export class Emitter extends Entity {
   }
 
   draw(time: number) {
-    if (!this.particleTexture) return;
+    if (!this.particleTexture || this.batches.length === 0) return;
     const gl = this.engine.gl;
-    if (this.batches.length === 0 || !this.particleTexture) {
-      return;
-    }
     gl.useProgram(this.program);
     // bind noise texture
-    const uNoiseTextureLocation = gl.getUniformLocation(this.program, 'uNoiseTexture');
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.noise);
-    gl.uniform1i(uNoiseTextureLocation, 0); // Assign texture unit 0
+    gl.uniform1i(this.uNoiseTexture, 0);
 
     // bind particle texture
-    const uParticleTextureLocation = gl.getUniformLocation(this.program, 'uParticleTexture');
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.particleTexture);
-    gl.uniform1i(uParticleTextureLocation, 1);
+    gl.uniform1i(this.uParticleTexture, 1);
 
-    if (this.options.is2d) {
-      // gl.disable(gl.DEPTH_TEST);
-      // gl.enable(gl.BLEND);
-      // gl.disable(gl.CULL_FACE);
+    gl.uniform1f(this.uBillboard, this.options.orientation === 'billboard' ? 1.0 : 0.0);
+    gl.uniform1f(this.uUseLighting, this.options.useLighting !== false ? 1.0 : 0.0);
+    gl.uniform3fv(this.uLightPosition, new Vec3(this.engine.resolution.x / 2, this.engine.resolution.y / 2, 10000).value);
+
+    const useAlphaBlending = this.options.useAlphaBlending !== false;
+    const blendWasEnabled = gl.isEnabled(gl.BLEND);
+    const blendSrc = gl.getParameter(gl.BLEND_SRC_RGB);
+    const blendDst = gl.getParameter(gl.BLEND_DST_RGB);
+    const depthTestWasEnabled = gl.isEnabled(gl.DEPTH_TEST);
+    if (useAlphaBlending) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.BLEND);
     }
-
-    const lightPositionLocation = gl.getUniformLocation(this.program, 'uLightPosition');
-    gl.uniform3fv(lightPositionLocation, new Vec3(this.engine.resolution.x / 2, this.engine.resolution.y / 2, 10000).value);
 
     for (let index = 0; index < this.batches.length; index++) {
       const { particleBatch, startTime, data } = this.batches[index];
@@ -248,9 +265,16 @@ export class Emitter extends Entity {
       });
     }
 
-    if (this.options.is2d) {
-      // gl.enable(gl.DEPTH_TEST);
-      // this.engine.resetBlend();
+    if (blendWasEnabled) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(blendSrc as GLenum, blendDst as GLenum);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+    if (depthTestWasEnabled) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
     }
 
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);

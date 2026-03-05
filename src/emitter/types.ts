@@ -1,10 +1,25 @@
+import type { Geometry } from '../loaders/objectLoader/types';
+
+export type EmitterOrientation = 'billboard' | 'free';
+
 export interface EmitterOptions {
+  /** Particle orientation: billboard = always face camera, free = use mesh rotation */
+  orientation: EmitterOrientation;
+  /** Particle texture (atlas supported via atlasLayout) */
   texture?: WebGLTexture;
+  /** Atlas dimensions for texture */
   atlasLayout?: {
     columns: number;
     rows: number;
   };
-  is2d: boolean;
+  /** Solid color when no texture. Optional for now. */
+  color?: { r: number; g: number; b: number };
+  /** Geometries from ObjectLoader.parseOBJ(...).geometries. If omitted, emitter uses a default plane for both orientations. */
+  modelGeometries?: Geometry[];
+  /** Use scene lighting (ambient, diffuse, specular). If false, use texture/color directly. Default true. */
+  useLighting?: boolean;
+  /** Enable alpha blending (e.g. for transparent sprites). Default true. */
+  useAlphaBlending?: boolean;
 }
 
 export interface ParticleBatchOptions {

@@ -53,6 +53,11 @@ export class Scene {
     entity.setup(this.projection, this.view, this.viewPosition);
   }
 
+  remove(entity: Entity) {
+    const i = this.entities.indexOf(entity);
+    if (i !== -1) this.entities.splice(i, 1);
+  }
+
   // Update the scene.
   draw(time: number) {
     for (const entity of this.entities) {

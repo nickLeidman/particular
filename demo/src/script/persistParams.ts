@@ -1,6 +1,11 @@
+import type { EmitterOrientation } from '@nleidman/particular';
+
 const STORAGE_KEY = 'particular-demo-params';
 
 const defaultParams = {
+  orientation: 'billboard' as EmitterOrientation,
+  useLighting: true,
+  useAlphaBlending: true,
   particle: {
     lifeTime: 4000,
     count: 100,
@@ -40,6 +45,9 @@ export function getDefaultParams(): Params {
 
 export function resetParamsToDefaults(params: Params): void {
   const d = getDefaultParams();
+  params.orientation = d.orientation;
+  params.useLighting = d.useLighting;
+  params.useAlphaBlending = d.useAlphaBlending;
   Object.assign(params.particle, d.particle);
   Object.assign(params.particle.v0, d.particle.v0);
   Object.assign(params.physics, d.physics);
@@ -52,6 +60,13 @@ function loadParamsFromStorage(): Params {
     if (!raw) return JSON.parse(JSON.stringify(defaultParams));
     const parsed = JSON.parse(raw) as Partial<Params>;
     const loaded: Params = JSON.parse(JSON.stringify(defaultParams));
+    if (parsed.orientation === 'billboard' || parsed.orientation === 'free') {
+      loaded.orientation = parsed.orientation;
+    } else if ((parsed as { mode?: string }).mode === '2d' || (parsed as { mode?: string }).mode === '3d') {
+      loaded.orientation = (parsed as { mode?: string }).mode === '2d' ? 'billboard' : 'free';
+    }
+    if (typeof parsed.useLighting === 'boolean') loaded.useLighting = parsed.useLighting;
+    if (typeof parsed.useAlphaBlending === 'boolean') loaded.useAlphaBlending = parsed.useAlphaBlending;
     if (parsed.particle) {
       Object.assign(loaded.particle, parsed.particle);
       if (parsed.particle.v0) Object.assign(loaded.particle.v0, parsed.particle.v0);

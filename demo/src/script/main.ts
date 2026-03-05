@@ -1,4 +1,12 @@
-import { Emitter, Engine, ObjectLoader, type ParticleBatchOptions, Scene, TextureLoader } from '@nleidman/particular';
+import {
+  Emitter,
+  Engine,
+  type EmitterOrientation,
+  ObjectLoader,
+  type ParticleBatchOptions,
+  Scene,
+  TextureLoader,
+} from '@nleidman/particular';
 import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
 import { Pane } from 'tweakpane';
@@ -55,6 +63,9 @@ const api: PaneLike = pane as unknown as PaneLike;
 
 const bindings: BindingApi[] = [];
 
+// Tweakpane's BindingApi has .on() at runtime for change handlers; the type def doesn't expose it.
+type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void };
+
 function addBinding(
   folder: PaneLike,
   obj: object,
@@ -65,6 +76,8 @@ function addBinding(
   bindings.push(b);
   return b;
 }
+
+const orientationFolder = api.addFolder({ title: 'Orientation', expanded: true });
 
 const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
 addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, step: 100, label: 'lifetime (ms)' });
@@ -128,21 +141,59 @@ loader.parseOBJ(cube); // keep for possible future body use
 
 const scene = new Scene(engine, { perspective: 10000 });
 
-const emitter = new Emitter(engine, {
-  atlasLayout: { columns: 2, rows: 1 },
-  is2d: true,
+let particleTexture: WebGLTexture | null = null;
+
+function createEmitter(orientation: EmitterOrientation): Emitter {
+  return new Emitter(engine, {
+    orientation,
+    atlasLayout: { columns: 2, rows: 1 },
+    useLighting: params.useLighting,
+    useAlphaBlending: params.useAlphaBlending,
+  });
+}
+
+function recreateEmitter() {
+  scene.remove(currentEmitter);
+  currentEmitter = createEmitter(params.orientation);
+  scene.add(currentEmitter);
+  if (particleTexture) {
+    currentEmitter.setTexture(particleTexture);
+  }
+}
+
+let currentEmitter = createEmitter(params.orientation);
+scene.add(currentEmitter);
+
+const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
+const useLightingBinding = addBinding(renderingFolder, params, 'useLighting', { label: 'Lighting' }) as ChangeableBindingApi;
+useLightingBinding.on('change', () => {
+  currentEmitter.setUseLighting(params.useLighting);
+});
+const useAlphaBlendingBinding = addBinding(renderingFolder, params, 'useAlphaBlending', {
+  label: 'Alpha blending',
+}) as ChangeableBindingApi;
+useAlphaBlendingBinding.on('change', () => {
+  currentEmitter.setUseAlphaBlending(params.useAlphaBlending);
 });
 
 const textureLoader = new TextureLoader(engine);
 textureLoader.load(particleImage).then((texture: WebGLTexture) => {
-  emitter.setTexture(texture);
+  particleTexture = texture;
+  currentEmitter.setTexture(texture);
 });
 
-scene.add(emitter);
+const orientationBinding = addBinding(orientationFolder, params, 'orientation', {
+  options: { Billboard: 'billboard', Free: 'free' },
+  label: 'Orientation',
+}) as ChangeableBindingApi;
+orientationBinding.on('change', () => {
+  recreateEmitter();
+});
+
 engine.start();
 
 container.addEventListener('click', (event: MouseEvent) => {
-  emitter.emit(compileConfig(event.clientX, event.clientY));
+  currentEmitter.emit(compileConfig(event.clientX, event.clientY));
 });
 
 window.addEventListener('keydown', (event: KeyboardEvent) => {

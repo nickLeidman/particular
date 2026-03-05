@@ -4,11 +4,11 @@ precision highp float;
 
 in float vColorSeed;
 in vec4 vPosition;
+in vec2 vTexCoords;
 in vec3 vFragmentPosition;
 in vec3 vNormal;
 in vec3 vViewPosition;
 flat in float vBorn;
-in float vBrightness;
 in float vRipeness;
 in vec2 vAtlasSize;
 in vec2 vAtlasOffset;
@@ -17,6 +17,7 @@ in vec3 vAtlasSweepOptions;
 
 uniform sampler2D uParticleTexture;
 uniform vec3 uLightPosition;
+uniform float uUseLighting;
 
 out vec4 outColor;
 
@@ -45,25 +46,27 @@ void main() {
     vec2 offset = vAtlasSweepOptions.z != 0.0 ? sweep(vAtlasOffset, vAge, vAtlasSweepOptions) : vAtlasOffset;
     vec2 atlasStep = 1.0 / vAtlasSize;
     vec2 normalizedOffset = offset * atlasStep;
-    vec2 atlasCoords = vec2(vPosition) * atlasStep + normalizedOffset;
+    vec2 atlasCoords = vTexCoords * atlasStep + normalizedOffset;
 
     vec4 texColor = texture(uParticleTexture, atlasCoords);
+    vec3 objectColor = texColor.rgb;
 
-    vec3 normal = normalize(vNormal);
-    vec3 lightDirection = normalize(uLightPosition - vFragmentPosition);
-    float diff = abs(dot(normal, lightDirection));
-    vec3 diffuse = diffuseStrength * diff * lightColor;
+    vec3 result;
+    if (uUseLighting > 0.5) {
+        vec3 normal = normalize(vNormal);
+        vec3 lightDirection = normalize(uLightPosition - vFragmentPosition);
+        float diff = abs(dot(normal, lightDirection));
+        vec3 diffuse = diffuseStrength * diff * lightColor;
 
-    vec3 viewDirection = normalize(vViewPosition - vFragmentPosition);
-    vec3 reflectDirection = reflect(-lightDirection, normal);
-    float spec = pow(max(dot(viewDirection, reflectDirection), 0.0), 64.0);
-    vec3 specular = specularStrength * spec * lightColor;
+        vec3 viewDirection = normalize(vViewPosition - vFragmentPosition);
+        vec3 reflectDirection = reflect(-lightDirection, normal);
+        float spec = pow(max(dot(viewDirection, reflectDirection), 0.0), 64.0);
+        vec3 specular = specularStrength * spec * lightColor;
 
-    vec3 objectColor = vec3(1.0, 0.8, 0.1);
+        result = (ambient + diffuse + specular) * objectColor;
+    } else {
+        result = objectColor;
+    }
 
-    vec3 result = (ambient + diffuse + specular) * objectColor;
-    outColor = vec4(result, 1.0);
-
-//    vec3 result = vec3(1.0, 0.8, 0.1);
-//    outColor = vec4(result, 1.0);
+    outColor = vec4(result, texColor.a);
 }
