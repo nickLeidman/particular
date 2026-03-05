@@ -13,9 +13,7 @@ const defaultParams = {
     aspectRatio: 1,
     v0: { x: 4000, y: 4000, z: 4000 },
     omega0: 5,
-    gravityX: 0,
-    gravityY: -1000,
-    gravityZ: 0,
+    gravity: { x: 0, y: 0, z: 0 },
     spawnDuration: 200,
     spawnSize: 40,
     scaleWithAge: 1,
@@ -43,51 +41,80 @@ export function getDefaultParams(): Params {
   return JSON.parse(JSON.stringify(defaultParams));
 }
 
+/** Mutate target with values from source (plain objects merged recursively). */
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): void {
+  for (const key of Object.keys(source)) {
+    const s = source[key];
+    if (s === null || s === undefined) continue;
+    const t = target[key];
+    if (
+      typeof s === 'object' &&
+      s !== null &&
+      !Array.isArray(s) &&
+      Object.getPrototypeOf(s) === Object.prototype &&
+      typeof t === 'object' &&
+      t !== null &&
+      !Array.isArray(t) &&
+      Object.getPrototypeOf(t) === Object.prototype
+    ) {
+      deepMerge(t as Record<string, unknown>, s as Record<string, unknown>);
+    } else {
+      (target as Record<string, unknown>)[key] = s;
+    }
+  }
+}
+
+/** One-time migration of old localStorage shapes into current shape. */
+function migrateLegacy(parsed: Record<string, unknown>): void {
+  if ((parsed.mode === '2d' || parsed.mode === '3d') && parsed.orientation === undefined) {
+    parsed.orientation = parsed.mode === '2d' ? 'billboard' : 'free';
+  }
+  const p = parsed.particle as Record<string, unknown> | undefined;
+  if (p && ('gravityX' in p || 'gravityY' in p || 'gravityZ' in p) && !p.gravity) {
+    p.gravity = {
+      x: (p.gravityX as number) ?? 0,
+      y: (p.gravityY as number) ?? -1000,
+      z: (p.gravityZ as number) ?? 0,
+    };
+  }
+}
+
+function validateParams(loaded: Params): void {
+  if (loaded.orientation !== 'billboard' && loaded.orientation !== 'free') {
+    loaded.orientation = 'billboard';
+  }
+  if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
+  if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
+  if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
+    loaded.atlas.sweepBy = 'row';
+  }
+}
+
+function loadParamsFromStorage(): Params {
+  const loaded = getDefaultParams() as unknown as Record<string, unknown>;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return loaded as Params;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    migrateLegacy(parsed);
+    deepMerge(loaded, parsed);
+    validateParams(loaded as Params);
+    return loaded as Params;
+  } catch {
+    return loaded as Params;
+  }
+}
+
 export function resetParamsToDefaults(params: Params): void {
   const d = getDefaultParams();
   params.orientation = d.orientation;
   params.useLighting = d.useLighting;
   params.useAlphaBlending = d.useAlphaBlending;
   Object.assign(params.particle, d.particle);
-  Object.assign(params.particle.v0, d.particle.v0);
   Object.assign(params.physics, d.physics);
   Object.assign(params.atlas, d.atlas);
-}
-
-function loadParamsFromStorage(): Params {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return JSON.parse(JSON.stringify(defaultParams));
-    const parsed = JSON.parse(raw) as Partial<Params>;
-    const loaded: Params = JSON.parse(JSON.stringify(defaultParams));
-    if (parsed.orientation === 'billboard' || parsed.orientation === 'free') {
-      loaded.orientation = parsed.orientation;
-    } else if ((parsed as { mode?: string }).mode === '2d' || (parsed as { mode?: string }).mode === '3d') {
-      loaded.orientation = (parsed as { mode?: string }).mode === '2d' ? 'billboard' : 'free';
-    }
-    if (typeof parsed.useLighting === 'boolean') loaded.useLighting = parsed.useLighting;
-    if (typeof parsed.useAlphaBlending === 'boolean') loaded.useAlphaBlending = parsed.useAlphaBlending;
-    if (parsed.particle) {
-      Object.assign(loaded.particle, parsed.particle);
-      if (parsed.particle.v0) Object.assign(loaded.particle.v0, parsed.particle.v0);
-      // Support legacy stored shape with gravity: { x, y, z }
-      const g = (parsed.particle as { gravity?: { x?: number; y?: number; z?: number } }).gravity;
-      if (g) {
-        if (g.x !== undefined) loaded.particle.gravityX = g.x;
-        if (g.y !== undefined) loaded.particle.gravityY = g.y;
-        if (g.z !== undefined) loaded.particle.gravityZ = g.z;
-      }
-    }
-    if (parsed.physics) Object.assign(loaded.physics, parsed.physics);
-    if (parsed.atlas) {
-      Object.assign(loaded.atlas, parsed.atlas);
-      if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
-        loaded.atlas.sweepBy = 'row';
-      }
-    }
-    return loaded;
-  } catch {
-    return JSON.parse(JSON.stringify(defaultParams));
+  if (params.atlas.sweepBy !== 'row' && params.atlas.sweepBy !== 'column') {
+    params.atlas.sweepBy = 'row';
   }
 }
 

@@ -29,7 +29,7 @@ function compileConfig(originX: number, originY: number): ParticleBatchOptions {
     v0: { ...p.v0 },
     velocityBias: { x: 0, y: 0, z: 0 },
     omega0: p.omega0,
-    gravity: { x: p.gravityX, y: p.gravityY, z: p.gravityZ },
+    gravity: { ...p.gravity },
     spawnDuration: p.spawnDuration,
     Cd: ph.Cd,
     Cr: ph.Cr,
@@ -66,12 +66,7 @@ const bindings: BindingApi[] = [];
 // Tweakpane's BindingApi has .on() at runtime for change handlers; the type def doesn't expose it.
 type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void };
 
-function addBinding(
-  folder: PaneLike,
-  obj: object,
-  key: string,
-  opts?: object,
-): BindingApi {
+function addBinding(folder: PaneLike, obj: object, key: string, opts?: object): BindingApi {
   const b = folder.addBinding(obj, key, opts);
   bindings.push(b);
   return b;
@@ -84,13 +79,19 @@ addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, 
 addBinding(particleFolder, params.particle, 'count', { min: 1, max: 2000, step: 10, label: 'count' });
 addBinding(particleFolder, params.particle, 'size', { min: 1, max: 500, step: 1, label: 'size (px)' });
 addBinding(particleFolder, params.particle, 'aspectRatio', { min: 0.1, max: 5, step: 0.1, label: 'aspect ratio' });
-addBinding(particleFolder, params.particle.v0, 'x', { min: 0, max: 10000, step: 100, label: 'v0.x (px/s)' });
-addBinding(particleFolder, params.particle.v0, 'y', { min: 0, max: 10000, step: 100, label: 'v0.y (px/s)' });
-addBinding(particleFolder, params.particle.v0, 'z', { min: 0, max: 10000, step: 100, label: 'v0.z (px/s)' });
+addBinding(particleFolder, params.particle, 'v0', {
+  label: 'v0 (px/s)',
+  x: { min: 0, max: 10000, step: 100 },
+  y: { min: 0, max: 10000, step: 100 },
+  z: { min: 0, max: 10000, step: 100 },
+});
 addBinding(particleFolder, params.particle, 'omega0', { min: 0, max: 50, step: 0.5, label: 'omega0 (rad/s)' });
-addBinding(particleFolder, params.particle, 'gravityX', { min: -5000, max: 5000, step: 100, label: 'gravity.x' });
-addBinding(particleFolder, params.particle, 'gravityY', { min: -5000, max: 5000, step: 100, label: 'gravity.y' });
-addBinding(particleFolder, params.particle, 'gravityZ', { min: -5000, max: 5000, step: 100, label: 'gravity.z' });
+addBinding(particleFolder, params.particle, 'gravity', {
+  label: 'gravity',
+  x: { min: -5000, max: 5000, step: 100 },
+  y: { min: -5000, max: 5000, step: 100 },
+  z: { min: -5000, max: 5000, step: 100 },
+});
 addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, max: 2000, step: 50, label: 'spawn duration (ms)' });
 addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, max: 200, step: 5, label: 'spawn size (px)' });
 addBinding(particleFolder, params.particle, 'scaleWithAge', { min: 0, max: 2, step: 0.1, label: 'scale with age' });
@@ -118,6 +119,7 @@ api.addButton({ title: 'Reset to defaults' }).on('click', () => {
   bindings.forEach((b) => {
     b.refresh();
   });
+  engine.draw();
 });
 
 api.addButton({ title: 'Copy config JSON' }).on('click', () => {
@@ -192,6 +194,11 @@ orientationBinding.on('change', () => {
 
 engine.start();
 
+// Redraw on any pane change so updates are visible when paused
+bindings.forEach((b) => {
+  (b as ChangeableBindingApi).on('change', () => engine.draw());
+});
+
 container.addEventListener('click', (event: MouseEvent) => {
   currentEmitter.emit(compileConfig(event.clientX, event.clientY));
 });
@@ -202,10 +209,10 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
     engine.togglePause();
   }
   if (event.key === 'ArrowLeft') {
-    engine.skip(-20);
+    engine.skip(-1000 / 60);
   }
   if (event.key === 'ArrowRight') {
-    engine.skip(20);
+    engine.skip(1000 / 60);
   }
 });
 

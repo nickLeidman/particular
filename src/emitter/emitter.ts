@@ -15,8 +15,6 @@ const EMITTER_BINDING_POINT = 1;
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
   private readonly noise: WebGLTexture;
-  // private readonly vbo: WebGLVertexArrayObject;
-  // private readonly vertexCount: number;
   private particleTexture?: WebGLTexture;
   private atlasLayout: { rows: number; columns: number };
   private objects: {
@@ -61,25 +59,9 @@ export class Emitter extends Entity {
     this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
     this.uLightPosition = gl.getUniformLocation(this.program, 'uLightPosition');
 
-    const geometries =
-      options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
+    const geometries = options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
 
     this.objects = Body.createVAOs(engine, this.program, geometries).objects;
-
-    // this.vbo = gl.createVertexArray();
-    // gl.bindVertexArray(this.vbo);
-    //
-    // const positionBuffer = gl.createBuffer();
-    // gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(SPRITE_POSITIONS), gl.STATIC_DRAW);
-    //
-    // const positionLocation = gl.getAttribLocation(this.program, 'aPosition');
-    // gl.enableVertexAttribArray(positionLocation);
-    // gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-    //
-    // gl.bindVertexArray(null);
-    //
-    // this.vertexCount = SPRITE_POSITIONS.length / 3;
   }
 
   setTexture(texture: WebGLTexture) {
@@ -166,42 +148,6 @@ export class Emitter extends Entity {
       throw new Error('Particle buffer data length must be divisible by 4');
     }
 
-    // const vVelocity = new Vec2(particleBatch.v0.x, particleBatch.v0.y);
-    // const vGravity = new Vec2(particleBatch.gravity.x, particleBatch.gravity.y);
-    //
-    // const getScissors = (time: number) => {
-    //   const k = particleBatch.drag; // Assume drag is already scaled as k = (Cd * rho * A) / (2 * mass)
-    //
-    //   // Compute velocity under drag influence
-    //   const vMag = vVelocity.length();
-    //   const vDir = vVelocity.normalize();
-    //
-    //   // Compute displacement with logarithmic slowdown
-    //   const displacement = vDir.scale((1.0 / k) * Math.log(1.0 + k * vMag * time));
-    //   let displacementPositive = displacement.multiply(new Vec2(1 + particleBatch.velocityBias.x, 1 + particleBatch.velocityBias.y));
-    //   let displacementNegative = displacement.multiply(new Vec2(-1 - particleBatch.velocityBias.x, -1 - particleBatch.velocityBias.y));
-    //
-    //
-    //   // Add acceleration term for external forces
-    //   displacementPositive = displacementPositive.add(vGravity.scale(time * time * 0.5));
-    //   displacementNegative = displacementNegative.add(vGravity.scale(time * time * 0.5));
-    //
-    //   const yFromTheBottom = this.engine.size.y - particleBatch.origin.y;
-    //
-    //
-    //   const scissorWidth = displacementPositive.x - displacementNegative.x;
-    //   const scissorHeight = displacementPositive.y - displacementNegative.y;
-    //   const scissorOriginX = particleBatch.origin.x + displacementNegative.x;
-    //   const scissorOriginY = yFromTheBottom + displacementNegative.y;
-    //
-    //   return {
-    //     width: scissorWidth * this.engine.pixelRatio,
-    //     height: scissorHeight * this.engine.pixelRatio,
-    //     x: scissorOriginX * this.engine.pixelRatio,
-    //     y: scissorOriginY * this.engine.pixelRatio,
-    //   };
-    // }
-
     this.batches.push({ particleBatch, data: particleBufferData, startTime });
   }
 
@@ -230,7 +176,7 @@ export class Emitter extends Entity {
     const depthTestWasEnabled = gl.isEnabled(gl.DEPTH_TEST);
     if (useAlphaBlending) {
       gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.disable(gl.DEPTH_TEST);
     } else {
       gl.disable(gl.BLEND);
@@ -240,11 +186,6 @@ export class Emitter extends Entity {
       const { particleBatch, startTime, data } = this.batches[index];
       const lifeTime = particleBatch.lifeTime;
       const age = time - startTime;
-
-      // const scissors = getScissors(age/1000);
-      // // console.log(scissors);
-      // gl.scissor(scissors.x, scissors.y, scissors.width, scissors.height);
-      // gl.enable(gl.SCISSOR_TEST);
 
       if (age > lifeTime + particleBatch.spawnDuration) {
         // remove batch
@@ -267,7 +208,7 @@ export class Emitter extends Entity {
 
     if (blendWasEnabled) {
       gl.enable(gl.BLEND);
-      gl.blendFunc(blendSrc as GLenum, blendDst as GLenum);
+      gl.blendFunc(blendSrc, blendDst);
     } else {
       gl.disable(gl.BLEND);
     }
