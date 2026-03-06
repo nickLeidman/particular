@@ -10,7 +10,11 @@ import {
 import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
 import { Pane } from 'tweakpane';
+import { setupFrameTimeGraph } from './frameTimeGraph';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
+
+/** When true, shows GPU frame time graph and hooks into engine draw (adds per-frame overhead). Set false for production. */
+const ENABLE_FRAME_TIME_GRAPH = true;
 
 /* ——— Params (single source of truth for emitter batch options) ——— */
 
@@ -53,6 +57,8 @@ const pane = new Pane({ title: 'Emitter' });
 pane.element.classList.add('pane-floating');
 document.body.appendChild(pane.element);
 
+const frameTimeCallbacks = ENABLE_FRAME_TIME_GRAPH ? setupFrameTimeGraph(pane) : null;
+
 // Tweakpane 4 types don't expose FolderApi methods on Pane; they exist at runtime
 type BindingApi = { refresh: () => void };
 type PaneLike = {
@@ -61,10 +67,7 @@ type PaneLike = {
   addButton: (opts: { title: string }) => { on: (ev: string, fn: () => void) => void };
 };
 const api: PaneLike = pane as unknown as PaneLike;
-
 const bindings: BindingApi[] = [];
-
-// Tweakpane's BindingApi has .on() at runtime for change handlers; the type def doesn't expose it.
 type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void };
 
 function addBinding(folder: PaneLike, obj: object, key: string, opts?: object): BindingApi {
@@ -149,6 +152,10 @@ container.appendChild(canvas);
 const engine = new Engine(canvas, {
   size: { x: container.clientWidth, y: container.clientHeight },
   pixelRation: 2,
+  ...(frameTimeCallbacks && {
+    onBeforeDraw: () => frameTimeCallbacks.onBeforeDraw(engine),
+    onAfterDraw: () => frameTimeCallbacks.onAfterDraw(engine),
+  }),
 });
 
 const loader = new ObjectLoader();

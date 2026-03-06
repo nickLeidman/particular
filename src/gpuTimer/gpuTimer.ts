@@ -17,14 +17,21 @@ export class GpuTimer {
     return !!this.ext;
   }
 
+  /** Number of queries ended but not yet available (for throttling submission). */
+  get pendingCount(): number {
+    return this.pending.length;
+  }
+
   begin(label = 'region'): { q: WebGLQuery; label: string } | null {
     if (!this.ext) {
       if (!this.warned) {
         this.warned = true;
-        // console.warn('EXT_disjoint_timer_query_webgl2 not available');
+        console.warn('EXT_disjoint_timer_query_webgl2 not available — GPU frame time graph will be empty.');
       }
       return null;
     }
+    // Clear disjoint state before starting (per spec: increases chance of valid results)
+    this.gl.getParameter(this.ext.GPU_DISJOINT_EXT);
     const q = this.gl.createQuery();
     if (!q) return null;
     this.gl.beginQuery(this.ext.TIME_ELAPSED_EXT, q);

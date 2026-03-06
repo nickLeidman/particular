@@ -29,12 +29,23 @@ export class Engine {
   private postProcessingPipeline: ((sourceTexture: WebGLTexture) => void)[] = [];
   timer: GpuTimer;
 
+  private onBeforeDraw: (() => void) | undefined;
+  private onAfterDraw: (() => void) | undefined;
+
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
-    options: { pixelRation: number; size: { x: number; y: number }; beforeSetup?: (gl: WebGLRenderingContext) => void },
+    options: {
+      pixelRation: number;
+      size: { x: number; y: number };
+      beforeSetup?: (gl: WebGLRenderingContext) => void;
+      onBeforeDraw?: () => void;
+      onAfterDraw?: () => void;
+    },
   ) {
     this.pixelRatio = options.pixelRation;
     this.size = new Vec2(options.size.x, options.size.y);
+    this.onBeforeDraw = options.onBeforeDraw;
+    this.onAfterDraw = options.onAfterDraw;
 
     const gl = canvas.getContext('webgl2', {
       powerPreference: 'high-performance',
@@ -118,15 +129,9 @@ export class Engine {
       previousTime = timestamp;
       if (this.paused) return;
       this.time += delta;
-      // this.timer.measure(
-      //   'draw',
-      //   () => {
+      this.onBeforeDraw?.();
       this.draw();
-      // },
-      // (label, nanoseconds) => {
-      //   console.log(nanoseconds / 1_000_000);
-      // },
-      // );
+      this.onAfterDraw?.();
       requestAnimationFrame(renderLoop);
     };
     requestAnimationFrame(renderLoop);
