@@ -13,7 +13,7 @@ const defaultParams = {
     lifeTime: 4000,
     count: 100,
     size: 100,
-    aspectRatio: 1,
+    scale: { x: 1, y: 1, z: 1 },
     v0: { x: 4000, y: 4000, z: 4000 },
     velocityBias: { x: 0, y: 0, z: 0 },
     omega0: 5,
@@ -81,9 +81,6 @@ function migrateLegacy(parsed: Record<string, unknown>): void {
       y: (p.gravityY as number) ?? -1000,
       z: (p.gravityZ as number) ?? 0,
     };
-  }
-  if (p && 'scale' in p && typeof (p.scale as { x?: number })?.x === 'number' && p.aspectRatio === undefined) {
-    p.aspectRatio = (p.scale as { x: number }).x;
   }
 }
 

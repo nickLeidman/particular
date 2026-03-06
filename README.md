@@ -50,10 +50,10 @@ export interface ParticleBatchOptions {
   /** Size of a particle in **pixels** */
   size: number;
   /**
-   * Aspect ratio of the particle.
-   * @default 1
+   * Per-axis scale of the particle (applied with size).
+   * @default { x: 1, y: 1, z: 1 }
    */
-  aspectRatio?: number;
+  scale?: { x: number; y: number; z: number };
   /** Origin of the particle in **pixels**, relative to the top left corner*/
   origin: { x: number; y: number };
   /** Initial velocity of the particle in **pixels/s**. Each particle in a batch will receive a random velocity between `-v0` and `v0` */

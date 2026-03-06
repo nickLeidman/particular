@@ -61,7 +61,7 @@ export class Emitter extends Entity {
     this.particleBuffer = particleBuffer;
     gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, 48 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, 52 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
 
@@ -93,7 +93,7 @@ export class Emitter extends Entity {
   processParticleBatchOptions(options: ParticleBatchOptions): ParticleBatchProcessed {
     return {
       ...options,
-      aspectRatio: options.aspectRatio ?? 0,
+      scale: options.scale ?? { x: 1, y: 1, z: 1 },
       velocityBias: options.velocityBias ?? { x: 0, y: 0, z: 0 },
       spawnDuration: options.spawnDuration ?? 0,
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
@@ -160,6 +160,12 @@ export class Emitter extends Entity {
       particleBatch.atlas?.sweep?.by !== 'column' ? 0 : 1,
       (particleBatch.atlas?.sweep?.stepTime ?? 0) / 1000,
       particleBatch.atlas?.sweep?.stepCount ?? 0,
+      0, // padding
+
+      // vec3 particleScaleVec (std140: vec3 + padding)
+      particleBatch.scale.x,
+      particleBatch.scale.y,
+      particleBatch.scale.z,
       0, // padding
 
       ...world.toData(),

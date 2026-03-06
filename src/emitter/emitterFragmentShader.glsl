@@ -40,9 +40,9 @@ void main() {
 
     vec3 lightColor = vec3(0.8, 0.8, 0.8);
 
-    float ambientStrength = 0.7;
+    float ambientStrength = 0.8;
     float diffuseStrength = 0.8;
-    float specularStrength = 2.0;
+    float specularStrength = 10.0;
     vec3 ambient = ambientStrength * lightColor;
 
     vec2 offset = vAtlasSweepOptions.z != 0.0 ? sweep(vAtlasOffset, vAge, vAtlasSweepOptions) : vAtlasOffset;

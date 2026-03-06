@@ -24,7 +24,7 @@ function compileConfig(originX: number, originY: number): ParticleBatchOptions {
     lifeTime: p.lifeTime,
     count: p.count,
     size: p.size,
-    aspectRatio: p.aspectRatio,
+    scale: { ...p.scale },
     origin: { x: originX, y: originY },
     v0: { ...p.v0 },
     velocityBias: { ...p.velocityBias },
@@ -79,7 +79,12 @@ const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
 addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, step: 100, label: 'lifetime (ms)' });
 addBinding(particleFolder, params.particle, 'count', { min: 1, max: 2000, step: 10, label: 'count' });
 addBinding(particleFolder, params.particle, 'size', { min: 1, max: 500, step: 1, label: 'size (px)' });
-addBinding(particleFolder, params.particle, 'aspectRatio', { min: 0.1, max: 5, step: 0.1, label: 'aspect ratio' });
+addBinding(particleFolder, params.particle, 'scale', {
+  label: 'scale',
+  x: { min: 0.1, max: 3, step: 0.1 },
+  y: { min: 0.1, max: 3, step: 0.1 },
+  z: { min: 0.1, max: 3, step: 0.1 },
+});
 addBinding(particleFolder, params.particle, 'v0', {
   label: 'v0 (px/s)',
   x: { min: 0, max: 10000, step: 100 },
