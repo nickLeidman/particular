@@ -4,7 +4,7 @@ This file gives LLMs and other AI agents enough context to work effectively in t
 
 ## What this project is
 
-**Particular** (`@nleidman/particular`) is a small **WebGL2** library for rendering particle effects. It is **not** a full game engine: it focuses on particle rendering with physics-style parameters (gravity, drag, velocity, etc.). It supports running in **workers** (OffscreenCanvas). The library is **work in progress**; APIs may change.
+**Particular** (`@nleidman/particular`) is a small **WebGL2** library for rendering particle effects. It is **not** a full game engine: it focuses on particle rendering with physics-style parameters (gravity, drag, velocity, etc.). It supports running in **workers** (OffscreenCanvas). Library is **verry** performance focused, meant to be runnable on the most low end devices, each change should adhere to this principle. The library is **work in progress**; APIs may change.
 
 - **Stack**: TypeScript, WebGL2, ESM. Build: Vite. Lint/format: Biome.
 - **Consumers**: Import from the package entry (see `src/index.ts`). The `demo` app is a local workspace that uses the built library.
@@ -23,6 +23,7 @@ This file gives LLMs and other AI agents enough context to work effectively in t
   - **`src/textureRenderer/quadRenderer.ts`** — Full-screen quad rendering (e.g. for post-processing).
 - **`demo/`** — Demo app (npm workspace). See **Demo app** section below.
 - **`vite.config.js`** (repo root) — Library build (Vite + vite-plugin-dts, vite-plugin-glsl). GLSL files are imported as strings.
+- **`backlog/`** — Suggestions and pending improvements (e.g. design reviews, refactors). Used to track work that is not yet scheduled.
 
 ## Core concepts (for code edits)
 
@@ -45,6 +46,7 @@ This file gives LLMs and other AI agents enough context to work effectively in t
 - **Add or change a particle batch parameter**: Update `ParticleBatchOptions` and `ParticleBatchProcessed` in `src/emitter/types.ts`, the `processParticleBatchOptions` and buffer construction in `src/emitter/emitter.ts`, and the **Emitter** uniform block + usage in `src/emitter/emitterVertexShader.glsl` (and fragment if needed). Keep std140 layout (vec4-aligned).
 - **Change emitter rendering (e.g. lighting, blending)**: `Emitter` sets uniforms in `draw()` (e.g. `uBillboard`, `uUseLighting`, `uLightPosition`, blend state). Adjust there and in the shaders.
 - **Add a new Entity type**: Subclass `Entity`, implement `draw(time)` and use `setup()` for Camera uniform block if needed. Register in a scene with `scene.add(entity)`.
+- **Modify and expand functionality of a demo app**: Change and expand on a demo functionality, add new controls, handle tweakpane. 
 
 ## Demo app (`demo/`)
 

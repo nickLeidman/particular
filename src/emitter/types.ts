@@ -12,8 +12,6 @@ export interface EmitterOptions {
     columns: number;
     rows: number;
   };
-  /** Solid color when no texture. Optional for now. */
-  color?: { r: number; g: number; b: number };
   /** Geometries from ObjectLoader.parseOBJ(...).geometries. If omitted, emitter uses a default plane for both orientations. */
   modelGeometries?: Geometry[];
   /** Use scene lighting (ambient, diffuse, specular). If false, use texture/color directly. Default true. */
@@ -88,6 +86,11 @@ export interface ParticleBatchOptions {
    * Diameter of a spawn area in **pixels**.
    * */
   spawnSize: number;
+  /**
+   * Solid color for particles in this batch (used when emitter has no texture, or as tint).
+   * @default { r: 1, g: 1, b: 1 }
+   */
+  color?: { r: number; g: number; b: number };
 }
 
 export interface ParticleBatchProcessed extends ParticleBatchOptions {
@@ -101,4 +104,5 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
   scaleWithAge: number;
   drag: number;
   angularDrag: number;
+  color: { r: number; g: number; b: number };
 }

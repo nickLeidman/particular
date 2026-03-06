@@ -19,19 +19,26 @@ layout(std140) uniform Emitter {
     float batchAge;
     float batchHash;
     float lifetime;
+
     vec3 gravity;
+
     vec3 v0;
+
     vec3 velocityBias;
     float size;
     float drag;
     float angularDrag;
     float spawnDuration;
     float spawnSize;
+
     float scaleWithAge;
     float omega0;
     vec2 atlasSize;
+
     vec2 atlasOffset;
+
     vec3 atlasSweepOptions;
+
     mat4 world;
 };
 

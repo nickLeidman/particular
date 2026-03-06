@@ -18,6 +18,8 @@ in vec3 vAtlasSweepOptions;
 uniform sampler2D uParticleTexture;
 uniform vec3 uLightPosition;
 uniform float uUseLighting;
+uniform vec3 uBatchColor;
+uniform float uUseTexture;
 
 out vec4 outColor;
 
@@ -49,7 +51,8 @@ void main() {
     vec2 atlasCoords = vTexCoords * atlasStep + normalizedOffset;
 
     vec4 texColor = texture(uParticleTexture, atlasCoords);
-    vec3 objectColor = texColor.rgb;
+    vec3 objectColor = uUseTexture > 0.5 ? texColor.rgb : uBatchColor;
+    float outAlpha = uUseTexture > 0.5 ? texColor.a : 1.0;
 
     vec3 result;
     if (uUseLighting > 0.5) {
@@ -68,5 +71,5 @@ void main() {
         result = objectColor;
     }
 
-    outColor = vec4(result, texColor.a);
+    outColor = vec4(result, outAlpha);
 }

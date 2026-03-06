@@ -27,7 +27,7 @@ function compileConfig(originX: number, originY: number): ParticleBatchOptions {
     aspectRatio: p.aspectRatio,
     origin: { x: originX, y: originY },
     v0: { ...p.v0 },
-    velocityBias: { x: 0, y: 0, z: 0 },
+    velocityBias: { ...p.velocityBias },
     omega0: p.omega0,
     gravity: { ...p.gravity },
     spawnDuration: p.spawnDuration,
@@ -43,6 +43,7 @@ function compileConfig(originX: number, originY: number): ParticleBatchOptions {
     },
     spawnSize: p.spawnSize,
     scaleWithAge: p.scaleWithAge,
+    color: { r: p.color.r, g: p.color.g, b: p.color.b },
   };
 }
 
@@ -85,6 +86,12 @@ addBinding(particleFolder, params.particle, 'v0', {
   y: { min: 0, max: 10000, step: 100 },
   z: { min: 0, max: 10000, step: 100 },
 });
+addBinding(particleFolder, params.particle, 'velocityBias', {
+  label: 'velocity bias',
+  x: { min: -1, max: 1, step: 0.1 },
+  y: { min: -1, max: 1, step: 0.1 },
+  z: { min: -1, max: 1, step: 0.1 },
+});
 addBinding(particleFolder, params.particle, 'omega0', { min: 0, max: 50, step: 0.5, label: 'omega0 (rad/s)' });
 addBinding(particleFolder, params.particle, 'gravity', {
   label: 'gravity',
@@ -95,6 +102,7 @@ addBinding(particleFolder, params.particle, 'gravity', {
 addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, max: 2000, step: 50, label: 'spawn duration (ms)' });
 addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, max: 200, step: 5, label: 'spawn size (px)' });
 addBinding(particleFolder, params.particle, 'scaleWithAge', { min: 0, max: 2, step: 0.1, label: 'scale with age' });
+addBinding(particleFolder, params.particle, 'color', { color: { type: 'float' }, label: 'color' });
 
 const physicsFolder = api.addFolder({ title: 'Physics', expanded: true });
 addBinding(physicsFolder, params.physics, 'Cd', { min: 0, max: 5, step: 0.1, label: 'drag coeff' });
@@ -158,13 +166,19 @@ function recreateEmitter() {
   scene.remove(currentEmitter);
   currentEmitter = createEmitter(params.orientation);
   scene.add(currentEmitter);
-  if (particleTexture) {
-    currentEmitter.setTexture(particleTexture);
-  }
+  applyTextureChoice();
 }
 
 let currentEmitter = createEmitter(params.orientation);
 scene.add(currentEmitter);
+
+function applyTextureChoice() {
+  if (params.texture === 'atlas' && particleTexture) {
+    currentEmitter.setTexture(particleTexture);
+  } else {
+    currentEmitter.setTexture(null);
+  }
+}
 
 const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
 const useLightingBinding = addBinding(renderingFolder, params, 'useLighting', { label: 'Lighting' }) as ChangeableBindingApi;
@@ -178,10 +192,20 @@ useAlphaBlendingBinding.on('change', () => {
   currentEmitter.setUseAlphaBlending(params.useAlphaBlending);
 });
 
+const textureBinding = addBinding(renderingFolder, params, 'texture', {
+  options: { None: 'none', 'Particle atlas': 'atlas' },
+  label: 'Texture',
+}) as ChangeableBindingApi;
+textureBinding.on('change', () => {
+  applyTextureChoice();
+});
+
+applyTextureChoice();
+
 const textureLoader = new TextureLoader(engine);
 textureLoader.load(particleImage).then((texture: WebGLTexture) => {
   particleTexture = texture;
-  currentEmitter.setTexture(texture);
+  applyTextureChoice();
 });
 
 const orientationBinding = addBinding(orientationFolder, params, 'orientation', {

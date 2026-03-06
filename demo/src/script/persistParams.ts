@@ -2,21 +2,26 @@ import type { EmitterOrientation } from '@nleidman/particular';
 
 const STORAGE_KEY = 'particular-demo-params';
 
+export type TextureChoice = 'none' | 'atlas';
+
 const defaultParams = {
   orientation: 'billboard' as EmitterOrientation,
   useLighting: true,
   useAlphaBlending: true,
+  texture: 'atlas' as TextureChoice,
   particle: {
     lifeTime: 4000,
     count: 100,
     size: 100,
     aspectRatio: 1,
     v0: { x: 4000, y: 4000, z: 4000 },
+    velocityBias: { x: 0, y: 0, z: 0 },
     omega0: 5,
     gravity: { x: 0, y: 0, z: 0 },
     spawnDuration: 200,
     spawnSize: 40,
     scaleWithAge: 1,
+    color: { r: 1, g: 0.4, b: 0.2 },
   },
   physics: {
     Cd: 1.1,
@@ -77,6 +82,9 @@ function migrateLegacy(parsed: Record<string, unknown>): void {
       z: (p.gravityZ as number) ?? 0,
     };
   }
+  if (p && 'scale' in p && typeof (p.scale as { x?: number })?.x === 'number' && p.aspectRatio === undefined) {
+    p.aspectRatio = (p.scale as { x: number }).x;
+  }
 }
 
 function validateParams(loaded: Params): void {
@@ -85,6 +93,7 @@ function validateParams(loaded: Params): void {
   }
   if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
   if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
+  if (loaded.texture !== 'none' && loaded.texture !== 'atlas') loaded.texture = 'atlas';
   if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
     loaded.atlas.sweepBy = 'row';
   }
@@ -110,6 +119,7 @@ export function resetParamsToDefaults(params: Params): void {
   params.orientation = d.orientation;
   params.useLighting = d.useLighting;
   params.useAlphaBlending = d.useAlphaBlending;
+  params.texture = d.texture;
   Object.assign(params.particle, d.particle);
   Object.assign(params.physics, d.physics);
   Object.assign(params.atlas, d.atlas);
