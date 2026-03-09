@@ -22,6 +22,7 @@ function nearestPowerOfTwo(n: number): NsValue {
 const defaultParams = {
   orientation: 'billboard' as EmitterOrientation,
   useLighting: true,
+  lightColor: { r: 0.8, g: 0.8, b: 0.8 },
   useAlphaBlending: true,
   texture: 'atlas' as TextureChoice,
   particle: {
@@ -108,6 +109,14 @@ function validateParams(loaded: Params): void {
     loaded.orientation = 'billboard';
   }
   if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
+  if (
+    !loaded.lightColor ||
+    typeof loaded.lightColor.r !== 'number' ||
+    typeof loaded.lightColor.g !== 'number' ||
+    typeof loaded.lightColor.b !== 'number'
+  ) {
+    loaded.lightColor = { r: 0.8, g: 0.8, b: 0.8 };
+  }
   if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
   if (loaded.texture !== 'none' && loaded.texture !== 'atlas') loaded.texture = 'atlas';
   if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
@@ -138,6 +147,7 @@ export function resetParamsToDefaults(params: Params): void {
   const d = getDefaultParams();
   params.orientation = d.orientation;
   params.useLighting = d.useLighting;
+  params.lightColor = { ...d.lightColor };
   params.useAlphaBlending = d.useAlphaBlending;
   params.texture = d.texture;
   Object.assign(params.particle, d.particle);

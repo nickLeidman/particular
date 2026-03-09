@@ -1,6 +1,7 @@
 import { Engine } from '../../engine/engine';
 import type { M4 } from '../../m4';
 import type { Vec3 } from '../../vec3';
+import type { Light } from '../../scene/light';
 
 export abstract class Entity {
   protected readonly gl: WebGL2RenderingContext;
@@ -20,7 +21,7 @@ export abstract class Entity {
     return true;
   }
 
-  setup(projection: M4, view: M4, viewPosition: Vec3) {
+  setup(projection: M4, view: M4, viewPosition: Vec3, light: Light) {
     const gl = this.gl;
     gl.useProgram(this.program);
 
@@ -30,11 +31,20 @@ export abstract class Entity {
     }
     const cameraReference = gl.getUniformBlockIndex(this.program, 'Camera');
     gl.uniformBlockBinding(this.program, cameraReference, Engine.BindingPoints.Camera);
-
     gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Camera, cameraBuffer);
+    gl.bufferData(
+      gl.UNIFORM_BUFFER,
+      new Float32Array([...projection.toData(), ...view.toData(), ...viewPosition.value, 0]),
+      gl.DYNAMIC_DRAW,
+    );
 
-    const cameraData = new Float32Array([...projection.toData(), ...view.toData(), ...viewPosition.value, 0]);
-
-    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array(cameraData), gl.DYNAMIC_DRAW);
+    const lightBuffer = gl.createBuffer();
+    if (!lightBuffer) {
+      throw new Error('Failed to create buffer');
+    }
+    const lightReference = gl.getUniformBlockIndex(this.program, 'Lighting');
+    gl.uniformBlockBinding(this.program, lightReference, Engine.BindingPoints.Lighting);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Lighting, lightBuffer);
+    gl.bufferData(gl.UNIFORM_BUFFER, new Float32Array([...light.position.value, 0, ...light.color.value, 0]), gl.DYNAMIC_DRAW);
   }
 }

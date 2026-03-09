@@ -12,6 +12,11 @@ flat in float vBorn;
 in float vRipeness;
 in float vAge;
 
+layout(std140) uniform Lighting {
+    vec3 lightPosition;
+    vec3 lightColor;
+};
+
 // Layout must match Emitter block in emitterVertexShader.glsl (std140).
 layout(std140) uniform Emitter {
     float batchAge;
@@ -41,7 +46,6 @@ layout(std140) uniform Emitter {
 };
 
 uniform sampler2D uParticleTexture;
-uniform vec3 uLightPosition;
 uniform float uUseLighting;
 uniform float uUseTexture;
 
@@ -62,12 +66,6 @@ void main() {
         discard;
     }
 
-    vec3 lightColor = vec3(0.8, 0.8, 0.8);
-
-    float ambientStrength = 0.8;
-    float diffuseStrength = 0.8;
-    float specularStrength = 10.0;
-
     vec2 offset = atlasSweepOptions.z != 0.0 ? sweep(atlasOffset, vAge, atlasSweepOptions) : atlasOffset;
     vec2 atlasStep = 1.0 / atlasSize;
     vec2 normalizedOffset = offset * atlasStep;
@@ -82,15 +80,15 @@ void main() {
     vec3 result;
     if (uUseLighting > 0.5) {
         vec3 normal = normalize(vNormal);
-        vec3 lightDirection = normalize(uLightPosition - vFragmentPosition);
+        vec3 lightDirection = normalize(lightPosition - vFragmentPosition);
         float diff = abs(dot(normal, lightDirection));
-        vec3 ambientTerm = ambientStrength * lightColor * Ka_eff;
-        vec3 diffuseTerm = diffuseStrength * diff * lightColor * Kd_eff;
+        vec3 ambientTerm = lightColor * Ka_eff;
+        vec3 diffuseTerm = diff * lightColor * Kd_eff;
 
         vec3 viewDirection = normalize(vViewPosition - vFragmentPosition);
         vec3 reflectDirection = reflect(-lightDirection, normal);
         float spec = pow(max(dot(viewDirection, reflectDirection), 0.0), Ns);
-        vec3 specularTerm = specularStrength * spec * lightColor * Ks;
+        vec3 specularTerm = spec * lightColor * Ks;
 
         result = ambientTerm + diffuseTerm + specularTerm;
     } else {

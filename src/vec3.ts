@@ -1,5 +1,25 @@
 export class Vec3 {
   public value: number[];
+
+  get r(): number {
+    return this.value[0];
+  }
+  get g(): number {
+    return this.value[1];
+  }
+  get b(): number {
+    return this.value[2];
+  }
+  set r(value: number) {
+    this.value[0] = value;
+  }
+  set g(value: number) {
+    this.value[1] = value;
+  }
+  set b(value: number) {
+    this.value[2] = value;
+  }
+
   constructor(
     public x: number,
     public y: number,

@@ -157,6 +157,7 @@ api.addButton({ title: 'Reset to defaults' }).on('click', () => {
     b.refresh();
   });
   setKaDisabled(params.particle.useDiffuseAsAmbient);
+  scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
   engine.draw();
 });
 
@@ -184,6 +185,7 @@ const loader = new ObjectLoader();
 loader.parseOBJ(cube); // keep for possible future body use
 
 const scene = new Scene(engine, { perspective: 10000 });
+scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
 
 let particleTexture: WebGLTexture | null = null;
 
@@ -218,6 +220,13 @@ const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
 const useLightingBinding = addBinding(renderingFolder, params, 'useLighting', { label: 'Lighting' }) as ChangeableBindingApi;
 useLightingBinding.on('change', () => {
   currentEmitter.setUseLighting(params.useLighting);
+});
+const lightColorBinding = addBinding(renderingFolder, params, 'lightColor', {
+  color: { type: 'float' },
+  label: 'Light color',
+}) as ChangeableBindingApi;
+lightColorBinding.on('change', () => {
+  scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
 });
 const useAlphaBlendingBinding = addBinding(renderingFolder, params, 'useAlphaBlending', {
   label: 'Alpha blending',

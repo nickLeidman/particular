@@ -1,16 +1,13 @@
-import type { Engine } from '../engine/engine';
+import { Engine } from '../engine/engine';
 import { Body } from '../entities';
 import { Entity } from '../entities/entity/entity';
 import { ObjectLoader } from '../loaders';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
-import { Vec3 } from '../vec3';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import plane from './plane.obj?raw';
 import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
-
-const EMITTER_BINDING_POINT = 1;
 
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
@@ -28,7 +25,6 @@ export class Emitter extends Entity {
   private readonly uParticleTexture: WebGLUniformLocation | null;
   private readonly uBillboard: WebGLUniformLocation | null;
   private readonly uUseLighting: WebGLUniformLocation | null;
-  private readonly uLightPosition: WebGLUniformLocation | null;
   private readonly uUseTexture: WebGLUniformLocation | null;
 
   private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
@@ -58,8 +54,8 @@ export class Emitter extends Entity {
       throw new Error('Failed to create particleBuffer');
     }
     this.particleBuffer = particleBuffer;
-    gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
-    gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
+    gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), Engine.BindingPoints.Emitter);
+    gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Emitter, this.particleBuffer);
     gl.bufferData(gl.UNIFORM_BUFFER, 64 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
@@ -68,7 +64,6 @@ export class Emitter extends Entity {
     this.uParticleTexture = gl.getUniformLocation(this.program, 'uParticleTexture');
     this.uBillboard = gl.getUniformLocation(this.program, 'uBillboard');
     this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
-    this.uLightPosition = gl.getUniformLocation(this.program, 'uLightPosition');
     this.uUseTexture = gl.getUniformLocation(this.program, 'uUseTexture');
 
     const geometries = options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
@@ -212,7 +207,6 @@ export class Emitter extends Entity {
 
     gl.uniform1f(this.uBillboard, this.options.orientation === 'billboard' ? 1.0 : 0.0);
     gl.uniform1f(this.uUseLighting, this.options.useLighting !== false ? 1.0 : 0.0);
-    gl.uniform3fv(this.uLightPosition, new Vec3(this.engine.resolution.x / 2, this.engine.resolution.y / 2, 10000).value);
 
     const useAlphaBlending = this.options.useAlphaBlending !== false;
     const blendWasEnabled = gl.isEnabled(gl.BLEND);
@@ -243,7 +237,7 @@ export class Emitter extends Entity {
 
       gl.uniform1f(this.uUseTexture, this.particleTexture ? 1.0 : 0.0);
 
-      gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
+      gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Emitter, this.particleBuffer);
       gl.bindBuffer(gl.UNIFORM_BUFFER, this.particleBuffer);
       gl.bufferData(gl.UNIFORM_BUFFER, data, gl.DYNAMIC_DRAW);
 

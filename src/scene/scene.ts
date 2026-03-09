@@ -1,9 +1,14 @@
 import type { Engine } from '../engine/engine';
 import type { Entity } from '../entities/entity/entity';
+import { Light } from './light';
 import { M4 } from '../m4';
 import { Vec3 } from '../vec3';
 
+export { Light } from './light';
+
 export class Scene {
+  readonly light: Light;
+
   private gl: WebGL2RenderingContext;
   private entities: Entity[] = [];
   private readonly perspective: null | number;
@@ -15,6 +20,8 @@ export class Scene {
     private engine: Engine,
     options?: {
       perspective?: number;
+      /** Light for the scene. If omitted, a default light is created and wired to refresh entities on change. */
+      light?: Light;
     },
   ) {
     this.engine = engine;
@@ -33,24 +40,31 @@ export class Scene {
       this.view = M4.translation(0, 0, -longestDimension);
       this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, 0);
     } else {
-      // in case of perspective projection
       const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
       this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 100, this.perspective * 2);
-      // move the camera back the distance and move origin back to 0x 0y
       this.view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
       this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, this.perspective);
     }
 
+    this.light = options?.light ?? new Light({ position: this.viewPosition, onChange: () => this.refreshEntitySetup() });
+
     for (const entity of this.entities) {
-      entity.setup(this.projection, this.view, this.viewPosition);
+      entity.setup(this.projection, this.view, this.viewPosition, this.light);
     }
 
     engine.addScene(this);
   }
 
+  /** Re-run setup on all entities with current camera and light. Called automatically when the default light changes. */
+  refreshEntitySetup() {
+    for (const entity of this.entities) {
+      entity.setup(this.projection, this.view, this.viewPosition, this.light);
+    }
+  }
+
   add(entity: Entity) {
     this.entities.push(entity);
-    entity.setup(this.projection, this.view, this.viewPosition);
+    entity.setup(this.projection, this.view, this.viewPosition, this.light);
   }
 
   remove(entity: Entity) {

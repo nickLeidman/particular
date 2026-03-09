@@ -8,7 +8,8 @@ import { Vec2 } from '../vec2';
 export class Engine {
   static BindingPoints = {
     Camera: 0,
-    Lighting: 1,
+    Emitter: 1, // particle batch UBO (Emitter block)
+    Lighting: 2,
   };
 
   readonly gl: WebGL2RenderingContext;
