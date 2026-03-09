@@ -105,5 +105,18 @@ export interface ParticleBatchOptions {
    * Diameter of a spawn area in **pixels**.
    * */
   spawnSize: number;
+  /**
+   * Phong-style material (ambient, diffuse, specular color and shininess).
+   * When the emitter has a texture, Ka and Kd are taken from the texture; Ks and Ns always come from the batch.
+   * RGB values in [0, 1]; Ns (shininess) typically 1–256.
+   */
+  /** Ambient color. @default { r: 1, g: 1, b: 1 } */
+  Ka?: { r: number; g: number; b: number };
+  /** Diffuse color. @default { r: 1, g: 1, b: 1 } */
+  Kd?: { r: number; g: number; b: number };
+  /** Specular color (use { r:0, g:0, b:0 } for no specular). @default { r: 1, g: 1, b: 1 } */
+  Ks?: { r: number; g: number; b: number };
+  /** Specular exponent (shininess). @default 64 */
+  Ns?: number;
 }
 ```

@@ -11,7 +11,7 @@ import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
 import { Pane } from 'tweakpane';
 import { setupFrameTimeGraph } from './frameTimeGraph';
-import { createPersistentParams, resetParamsToDefaults } from './persistParams';
+import { createPersistentParams, Ns_POW2, resetParamsToDefaults } from './persistParams';
 
 /** When true, shows GPU frame time graph and hooks into engine draw (adds per-frame overhead). Set false for production. */
 const ENABLE_FRAME_TIME_GRAPH = false;
@@ -47,7 +47,10 @@ function compileConfig(originX: number, originY: number): ParticleBatchOptions {
     },
     spawnSize: p.spawnSize,
     scaleWithAge: p.scaleWithAge,
-    color: { r: p.color.r, g: p.color.g, b: p.color.b },
+    Ka: p.useDiffuseAsAmbient ? { r: p.Kd.r, g: p.Kd.g, b: p.Kd.b } : { r: p.Ka.r, g: p.Ka.g, b: p.Ka.b },
+    Kd: { r: p.Kd.r, g: p.Kd.g, b: p.Kd.b },
+    Ks: { r: p.Ks.r, g: p.Ks.g, b: p.Ks.b },
+    Ns: p.Ns,
   };
 }
 
@@ -110,7 +113,25 @@ addBinding(particleFolder, params.particle, 'gravity', {
 addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, max: 2000, step: 50, label: 'spawn duration (ms)' });
 addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, max: 200, step: 5, label: 'spawn size (px)' });
 addBinding(particleFolder, params.particle, 'scaleWithAge', { min: 0, max: 2, step: 0.1, label: 'scale with age' });
-addBinding(particleFolder, params.particle, 'color', { color: { type: 'float' }, label: 'color' });
+
+const materialFolder = api.addFolder({ title: 'Material', expanded: true });
+const useDiffuseAsAmbientBinding = addBinding(materialFolder, params.particle, 'useDiffuseAsAmbient', {
+  label: 'Use diffuse as ambient',
+}) as ChangeableBindingApi;
+const kaBinding = addBinding(materialFolder, params.particle, 'Ka', {
+  color: { type: 'float' },
+  label: 'Ambient (Ka)',
+});
+const setKaDisabled = (v: boolean) => {
+  (kaBinding as unknown as { disabled: boolean }).disabled = v;
+};
+setKaDisabled(params.particle.useDiffuseAsAmbient);
+useDiffuseAsAmbientBinding.on('change', () => setKaDisabled(params.particle.useDiffuseAsAmbient));
+addBinding(materialFolder, params.particle, 'Kd', { color: { type: 'float' }, label: 'Diffuse (Kd)' });
+addBinding(materialFolder, params.particle, 'Ks', { color: { type: 'float' }, label: 'Specular (Ks)' });
+const NsOptions: Record<string, number> = {};
+for (const n of Ns_POW2) NsOptions[String(n)] = n;
+addBinding(materialFolder, params.particle, 'Ns', { options: NsOptions, label: 'Shininess (Ns)' });
 
 const physicsFolder = api.addFolder({ title: 'Physics', expanded: true });
 addBinding(physicsFolder, params.physics, 'Cd', { min: 0, max: 5, step: 0.1, label: 'drag coeff' });
@@ -135,6 +156,7 @@ api.addButton({ title: 'Reset to defaults' }).on('click', () => {
   bindings.forEach((b) => {
     b.refresh();
   });
+  setKaDisabled(params.particle.useDiffuseAsAmbient);
   engine.draw();
 });
 

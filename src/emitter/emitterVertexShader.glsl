@@ -41,6 +41,11 @@ layout(std140) uniform Emitter {
 
     vec3 particleScaleVec;  // per-axis scale (name avoids conflict with scale() built-in)
 
+    vec3 Ka;
+    vec3 Kd;
+    vec3 Ks;
+    float Ns;
+
     mat4 world;
 };
 
@@ -55,10 +60,7 @@ flat out float vBorn;
 out float vColorSeed;
 out float vRipeness;
 out vec2 vTexCoords;
-out vec2 vAtlasSize;
-out vec2 vAtlasOffset;
 out float vAge;
-out vec3 vAtlasSweepOptions;
 
 const float PI = 3.14159265359;
 // Noise offsets: rotation 10,13-17; velocity 30,40,50; angular 100; size 110; age 120; color 200
@@ -154,10 +156,7 @@ void main() {
     vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
     vBorn = float(age >= 0.0 && ageScale > 0.0);
     vTexCoords = aTexcoord;
-    vAtlasSize = atlasSize;
-    vAtlasOffset = atlasOffset;
     vAge = age;
-    vAtlasSweepOptions = atlasSweepOptions;
     vPosition = aPosition;
     vNormal = mat3(transpose(inverse(model))) * aNormal;
     vViewPosition = viewPosition;

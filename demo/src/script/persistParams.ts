@@ -4,6 +4,21 @@ const STORAGE_KEY = 'particular-demo-params';
 
 export type TextureChoice = 'none' | 'atlas';
 
+/** Specular exponent (Ns) limited to powers of two for cheaper pow() on GPU. */
+export const Ns_POW2 = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
+export type NsValue = (typeof Ns_POW2)[number];
+
+function nearestPowerOfTwo(n: number): NsValue {
+  if (n <= 1) return 1;
+  if (n >= 256) return 256;
+  let prev = 1;
+  for (const p of Ns_POW2) {
+    if (n <= p) return n - prev <= p - n ? (prev as NsValue) : (p as NsValue);
+    prev = p;
+  }
+  return 256;
+}
+
 const defaultParams = {
   orientation: 'billboard' as EmitterOrientation,
   useLighting: true,
@@ -21,7 +36,11 @@ const defaultParams = {
     spawnDuration: 200,
     spawnSize: 40,
     scaleWithAge: 1,
-    color: { r: 1, g: 0.4, b: 0.2 },
+    useDiffuseAsAmbient: true,
+    Ka: { r: 1, g: 1, b: 1 },
+    Kd: { r: 1, g: 0.4, b: 0.2 },
+    Ks: { r: 1, g: 1, b: 1 },
+    Ns: 64,
   },
   physics: {
     Cd: 1.1,
@@ -94,6 +113,10 @@ function validateParams(loaded: Params): void {
   if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
     loaded.atlas.sweepBy = 'row';
   }
+  if (typeof loaded.particle.useDiffuseAsAmbient !== 'boolean') {
+    loaded.particle.useDiffuseAsAmbient = true;
+  }
+  loaded.particle.Ns = nearestPowerOfTwo(loaded.particle.Ns);
 }
 
 function loadParamsFromStorage(): Params {

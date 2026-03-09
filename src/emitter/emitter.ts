@@ -29,7 +29,6 @@ export class Emitter extends Entity {
   private readonly uBillboard: WebGLUniformLocation | null;
   private readonly uUseLighting: WebGLUniformLocation | null;
   private readonly uLightPosition: WebGLUniformLocation | null;
-  private readonly uBatchColor: WebGLUniformLocation | null;
   private readonly uUseTexture: WebGLUniformLocation | null;
 
   private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
@@ -61,7 +60,7 @@ export class Emitter extends Entity {
     this.particleBuffer = particleBuffer;
     gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), EMITTER_BINDING_POINT);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, 52 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, 64 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
 
@@ -70,7 +69,6 @@ export class Emitter extends Entity {
     this.uBillboard = gl.getUniformLocation(this.program, 'uBillboard');
     this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
     this.uLightPosition = gl.getUniformLocation(this.program, 'uLightPosition');
-    this.uBatchColor = gl.getUniformLocation(this.program, 'uBatchColor');
     this.uUseTexture = gl.getUniformLocation(this.program, 'uUseTexture');
 
     const geometries = options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
@@ -100,7 +98,10 @@ export class Emitter extends Entity {
       scaleWithAge: options.scaleWithAge ?? 0,
       drag: (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
-      color: options.color ?? { r: 1, g: 1, b: 1 },
+      Ka: options.Ka ?? { r: 1, g: 1, b: 1 },
+      Kd: options.Kd ?? { r: 1, g: 1, b: 1 },
+      Ks: options.Ks ?? { r: 1, g: 1, b: 1 },
+      Ns: options.Ns ?? 64,
     };
   }
 
@@ -168,6 +169,22 @@ export class Emitter extends Entity {
       particleBatch.scale.z,
       0, // padding
 
+      // Material (std140: vec3 + float padding each, then float Ns)
+      particleBatch.Ka.r,
+      particleBatch.Ka.g,
+      particleBatch.Ka.b,
+      0, // padding
+
+      particleBatch.Kd.r,
+      particleBatch.Kd.g,
+      particleBatch.Kd.b,
+      0, // padding
+
+      particleBatch.Ks.r,
+      particleBatch.Ks.g,
+      particleBatch.Ks.b,
+      particleBatch.Ns,
+
       ...world.toData(),
     ]);
 
@@ -224,8 +241,6 @@ export class Emitter extends Entity {
 
       data[0] = age / 1000;
 
-      const c = particleBatch.color;
-      gl.uniform3f(this.uBatchColor, c.r, c.g, c.b);
       gl.uniform1f(this.uUseTexture, this.particleTexture ? 1.0 : 0.0);
 
       gl.bindBufferBase(gl.UNIFORM_BUFFER, EMITTER_BINDING_POINT, this.particleBuffer);

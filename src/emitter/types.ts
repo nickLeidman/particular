@@ -87,10 +87,17 @@ export interface ParticleBatchOptions {
    * */
   spawnSize: number;
   /**
-   * Solid color for particles in this batch (used when emitter has no texture, or as tint).
-   * @default { r: 1, g: 1, b: 1 }
+   * Phong-style material. When emitter has a texture, Ka and Kd are taken from the texture; Ks and Ns are always from the batch.
+   * Values in [0, 1] per channel; Ns (shininess) typically 1–500.
    */
-  color?: { r: number; g: number; b: number };
+  /** Ambient color. @default { r: 1, g: 1, b: 1 } */
+  Ka?: { r: number; g: number; b: number };
+  /** Diffuse color. @default { r: 1, g: 1, b: 1 } */
+  Kd?: { r: number; g: number; b: number };
+  /** Specular color (use 0,0,0 for no specular). @default { r: 1, g: 1, b: 1 } */
+  Ks?: { r: number; g: number; b: number };
+  /** Specular exponent (shininess). @default 64 */
+  Ns?: number;
 }
 
 export interface ParticleBatchProcessed extends ParticleBatchOptions {
@@ -104,5 +111,8 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
   scaleWithAge: number;
   drag: number;
   angularDrag: number;
-  color: { r: number; g: number; b: number };
+  Ka: { r: number; g: number; b: number };
+  Kd: { r: number; g: number; b: number };
+  Ks: { r: number; g: number; b: number };
+  Ns: number;
 }
