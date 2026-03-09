@@ -90,7 +90,10 @@ export class Engine {
       this.resetRenderTarget();
     }
 
-    this.clear();
+    // Clear only when at least one scene has content to draw (avoids full-screen clear when idle).
+    if (this.scenes.some((s) => s.hasActiveContent())) {
+      this.clear();
+    }
 
     this.gl.enable(this.gl.DEPTH_TEST);
     for (const scene of this.scenes) {
@@ -142,7 +145,7 @@ export class Engine {
   }
 
   clear() {
-    const mask = this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT | this.gl.STENCIL_BUFFER_BIT;
+    const mask = this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT;
     this.gl.clear(mask);
   }
 
@@ -153,6 +156,7 @@ export class Engine {
 
     this.canvas.width = this.resolution.x;
     this.canvas.height = this.resolution.y;
+    this.resetViewport();
 
     this.textureA = this.createFrameTexture();
     this.textureB = this.createFrameTexture();

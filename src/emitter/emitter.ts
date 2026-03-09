@@ -174,6 +174,10 @@ export class Emitter extends Entity {
     this.batches.push({ particleBatch, data: particleBufferData, startTime });
   }
 
+  hasActiveContent(): boolean {
+    return this.batches.length > 0;
+  }
+
   draw(time: number) {
     if (this.batches.length === 0) return;
 

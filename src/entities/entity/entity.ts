@@ -15,6 +15,11 @@ export abstract class Entity {
 
   abstract draw(time: number): void;
 
+  /** Whether this entity will produce visible draw calls this frame. Used to skip full-screen clear when idle. Default true (clear when in doubt). */
+  hasActiveContent(): boolean {
+    return true;
+  }
+
   setup(projection: M4, view: M4, viewPosition: Vec3) {
     const gl = this.gl;
     gl.useProgram(this.program);

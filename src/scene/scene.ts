@@ -58,6 +58,11 @@ export class Scene {
     if (i !== -1) this.entities.splice(i, 1);
   }
 
+  /** True if any entity will draw this frame (e.g. emitter has batches). Used to clear only when needed. */
+  hasActiveContent(): boolean {
+    return this.entities.some((e) => e.hasActiveContent());
+  }
+
   // Update the scene.
   draw(time: number) {
     for (const entity of this.entities) {

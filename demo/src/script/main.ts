@@ -14,7 +14,7 @@ import { setupFrameTimeGraph } from './frameTimeGraph';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
 
 /** When true, shows GPU frame time graph and hooks into engine draw (adds per-frame overhead). Set false for production. */
-const ENABLE_FRAME_TIME_GRAPH = true;
+const ENABLE_FRAME_TIME_GRAPH = false;
 
 /* ——— Params (single source of truth for emitter batch options) ——— */
 
