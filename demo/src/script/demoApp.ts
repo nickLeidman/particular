@@ -19,6 +19,7 @@ export type DemoApp = {
   engine: Engine;
   scene: Scene;
   emit: (config: ParticleBatchOptions) => void;
+  updateBatches: (config: ParticleBatchOptions) => void;
   recreateEmitter: () => void;
   applyTextureChoice: () => void;
   setUseLighting: () => void;
@@ -34,7 +35,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
 
   const engine = new Engine(canvas, {
     size: { x: container.clientWidth, y: container.clientHeight },
-    pixelRation: window.devicePixelRatio,
+    pixelRatio: window.devicePixelRatio,
     ...(frameTimeCallbacks && {
       onBeforeDraw: () => frameTimeCallbacks.onBeforeDraw(engine),
       onAfterDraw: () => frameTimeCallbacks.onAfterDraw(engine),
@@ -78,8 +79,10 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   }
 
   function recreateEmitter() {
+    const batches = currentEmitter.takeBatches();
     scene.remove(currentEmitter);
     currentEmitter = createEmitter(params.orientation);
+    currentEmitter.receiveBatches(batches);
     scene.add(currentEmitter);
     applyTextureChoice();
   }
@@ -101,6 +104,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     engine,
     scene,
     emit: (config) => currentEmitter.emit(config),
+    updateBatches: (config) => currentEmitter.updateBatches(config),
     recreateEmitter,
     applyTextureChoice,
     setUseLighting: () => currentEmitter.setUseLighting(params.useLighting),

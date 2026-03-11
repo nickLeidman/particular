@@ -24,7 +24,7 @@ addEventListener('message', async (event) => {
     const data = event.data as InitMessage;
     engine = new Engine(data.canvas, {
       size: data.size,
-      pixelRation: 2,
+      pixelRatio: 2,
     });
 
     // const gaussianShader = new GaussianBlurShader(engine, {radius: 10});

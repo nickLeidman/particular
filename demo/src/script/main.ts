@@ -31,12 +31,16 @@ uiContext.setLightColor = app.setLightColor;
 uiContext.setUseAlphaBlending = app.setUseAlphaBlending;
 uiContext.applyTextureChoice = app.applyTextureChoice;
 uiContext.applyCamera = app.applyCamera;
+uiContext.updateBatches = () => app.updateBatches(compileConfig(params, 0, 0));
 
 app.engine.start();
 
-// Redraw on any pane change so updates are visible when paused
+// Apply param changes to existing batches and redraw on any pane change (so updates are visible when paused)
 bindings.forEach((b) => {
-  void (b as BindingApi & { on: (ev: string, fn: () => void) => void }).on('change', () => app.engine.draw());
+  void (b as BindingApi & { on: (ev: string, fn: () => void) => void }).on('change', () => {
+    app.updateBatches(compileConfig(params, 0, 0));
+    app.engine.draw();
+  });
 });
 
 container.addEventListener('click', (event: MouseEvent) => {

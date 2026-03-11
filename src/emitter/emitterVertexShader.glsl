@@ -51,6 +51,7 @@ layout(std140) uniform Emitter {
 
 uniform sampler2D uNoiseTexture;
 uniform float uBillboard;
+uniform float uPixelRatio;
 
 out vec4 vPosition;
 out vec3 vFragmentPosition;
@@ -147,9 +148,12 @@ void main() {
     // Rotation then scale: scale is applied in particle local space (correct for non-uniform scale)
     mat4 model = translate(translate(world, displaceInFluid(velocity, gravity, age, drag)), spawnDisplacement) * rotationMatrix * scaleMatrix;
 
-    vFragmentPosition = vec3(model * aPosition);
+    // Scale from logical (CSS) pixels to physical pixels in one place; physics unchanged
+    mat4 modelScaled = scale(mat4(1.0), vec3(uPixelRatio, uPixelRatio, uPixelRatio)) * model;
 
-    vec4 newPosition = projection * view * model * aPosition;
+    vFragmentPosition = vec3(modelScaled * aPosition);
+
+    vec4 newPosition = projection * view * modelScaled * aPosition;
     gl_Position = newPosition;
 
     vColorSeed = sampleNoiseNormalized(instanceIndex, batchHash + 200.0);

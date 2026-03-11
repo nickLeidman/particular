@@ -36,14 +36,14 @@ export class Engine {
   constructor(
     private canvas: HTMLCanvasElement | OffscreenCanvas,
     options: {
-      pixelRation: number;
+      pixelRatio: number;
       size: { x: number; y: number };
       beforeSetup?: (gl: WebGLRenderingContext) => void;
       onBeforeDraw?: () => void;
       onAfterDraw?: () => void;
     },
   ) {
-    this.pixelRatio = options.pixelRation;
+    this.pixelRatio = options.pixelRatio;
     this.size = new Vec2(options.size.x, options.size.y);
     this.onBeforeDraw = options.onBeforeDraw;
     this.onAfterDraw = options.onAfterDraw;

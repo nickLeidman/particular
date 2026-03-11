@@ -26,8 +26,9 @@ export class Emitter extends Entity {
   private readonly uBillboard: WebGLUniformLocation | null;
   private readonly uUseLighting: WebGLUniformLocation | null;
   private readonly uUseTexture: WebGLUniformLocation | null;
+  private readonly uPixelRatio: WebGLUniformLocation | null;
 
-  private batches: { particleBatch: ParticleBatchProcessed; data: Float32Array; startTime: number }[] = [];
+  private batches: { particleBatch: ParticleBatchProcessed; id: number; data: Float32Array; startTime: number }[] = [];
 
   constructor(
     engine: Engine,
@@ -65,6 +66,7 @@ export class Emitter extends Entity {
     this.uBillboard = gl.getUniformLocation(this.program, 'uBillboard');
     this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
     this.uUseTexture = gl.getUniformLocation(this.program, 'uUseTexture');
+    this.uPixelRatio = gl.getUniformLocation(this.program, 'uPixelRatio');
 
     const geometries = options.modelGeometries?.length ? options.modelGeometries : new ObjectLoader().parseOBJ(plane).geometries;
 
@@ -100,20 +102,17 @@ export class Emitter extends Entity {
     };
   }
 
-  async emit(options: ParticleBatchOptions) {
+  createBatch(options: ParticleBatchOptions, id: number, startTime: number) {
     const particleBatch = this.processParticleBatchOptions(options);
-    const world = M4.translation(
-      particleBatch.origin.x * this.engine.pixelRatio,
-      this.engine.resolution.y - particleBatch.origin.y * this.engine.pixelRatio,
-      0,
-    );
-    const startTime = this.engine.now();
+    // World position in logical (CSS) pixels; vertex shader scales by uPixelRatio for physical output
+    const logicalHeight = this.engine.resolution.y / this.engine.pixelRatio;
+    const world = M4.translation(particleBatch.origin.x, logicalHeight - particleBatch.origin.y, 0);
 
     // particle buffer data, structured using std140 layout
     const particleBufferData = new Float32Array([
       /* Time Block */
       0, // age in seconds, filled in draw method
-      (startTime * (1 + Math.random())) % (256 * 256), // batch hash, mod 256^2
+      id, // batch hash, mod 256^2
       particleBatch.lifeTime / 1000, // lifetime in seconds
       0, // padding
 
@@ -138,7 +137,7 @@ export class Emitter extends Entity {
       particleBatch.drag,
       particleBatch.angularDrag,
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
-      particleBatch.spawnSize * this.engine.pixelRatio,
+      particleBatch.spawnSize,
 
       // 4 floats
       particleBatch.scaleWithAge,
@@ -183,11 +182,42 @@ export class Emitter extends Entity {
       ...world.toData(),
     ]);
 
-    this.batches.push({ particleBatch, data: particleBufferData, startTime });
+    const batch = { particleBatch, id, data: particleBufferData, startTime };
+    return batch;
+  }
+
+  emit(options: ParticleBatchOptions) {
+    const startTime = this.engine.now();
+    const batch = this.createBatch(options, (startTime * (1 + Math.random())) % (256 * 256), startTime);
+    this.batches.push(batch);
+  }
+
+  /** Apply new options to all existing batches, preserving each batch's origin. */
+  updateBatches(options: ParticleBatchOptions) {
+    for (let index = 0; index < this.batches.length; index++) {
+      const batch = this.batches[index];
+      const optionsWithBatchOrigin: ParticleBatchOptions = {
+        ...options,
+        origin: batch.particleBatch.origin,
+      };
+      this.batches[index] = this.createBatch(optionsWithBatchOrigin, batch.id, batch.startTime);
+    }
   }
 
   hasActiveContent(): boolean {
     return this.batches.length > 0;
+  }
+
+  /** Remove and return all batches (e.g. before replacing this emitter). */
+  takeBatches(): { particleBatch: ParticleBatchProcessed; id: number; data: Float32Array; startTime: number }[] {
+    const b = this.batches;
+    this.batches = [];
+    return b;
+  }
+
+  /** Adopt batches from another emitter (e.g. after orientation switch). */
+  receiveBatches(batches: { particleBatch: ParticleBatchProcessed; id: number; data: Float32Array; startTime: number }[]): void {
+    this.batches = batches;
   }
 
   draw(time: number) {
@@ -207,6 +237,7 @@ export class Emitter extends Entity {
 
     gl.uniform1f(this.uBillboard, this.options.orientation === 'billboard' ? 1.0 : 0.0);
     gl.uniform1f(this.uUseLighting, this.options.useLighting !== false ? 1.0 : 0.0);
+    if (this.uPixelRatio) gl.uniform1f(this.uPixelRatio, this.engine.pixelRatio);
 
     const useAlphaBlending = this.options.useAlphaBlending !== false;
     const blendWasEnabled = gl.isEnabled(gl.BLEND);

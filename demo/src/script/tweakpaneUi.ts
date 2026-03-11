@@ -14,6 +14,8 @@ export type TweakpaneUiContext = {
   setUseAlphaBlending?: () => void;
   applyTextureChoice?: () => void;
   applyCamera?: () => void;
+  /** Apply current particle/physics/atlas/material params to all existing batches (realtime). */
+  updateBatches?: () => void;
 };
 
 export type BindingApi = { refresh: () => void };
@@ -83,8 +85,8 @@ export function createTweakpaneUi(
   cameraTypeBinding.on('change', () => context.applyCamera?.());
 
   const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
-  addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, step: 100, label: 'lifetime (ms)' });
-  addBinding(particleFolder, params.particle, 'count', { min: 1, max: 2000, step: 10, label: 'count' });
+  addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, step: 100, label: 'lifetime (ms)' });
+  addBinding(particleFolder, params.particle, 'count', { min: 1, step: 1, label: 'count' });
   addBinding(particleFolder, params.particle, 'size', { min: 1, max: 500, step: 1, label: 'size (px)' });
   addBinding(particleFolder, params.particle, 'scale', {
     label: 'scale',
@@ -93,7 +95,7 @@ export function createTweakpaneUi(
     z: { min: 0.1, max: 3, step: 0.1 },
   });
   addBinding(particleFolder, params.particle, 'v0', {
-    label: 'v0 (px/s)',
+    label: 'velocity (px/s)',
     x: { min: 0, max: 10000, step: 100 },
     y: { min: 0, max: 10000, step: 100 },
     z: { min: 0, max: 10000, step: 100 },
@@ -104,16 +106,16 @@ export function createTweakpaneUi(
     y: { min: -1, max: 1, step: 0.1 },
     z: { min: -1, max: 1, step: 0.1 },
   });
-  addBinding(particleFolder, params.particle, 'omega0', { min: 0, max: 50, step: 0.5, label: 'omega0 (rad/s)' });
+  addBinding(particleFolder, params.particle, 'omega0', { min: 0, step: 0.5, label: 'angular velocity (rad/s)' });
   addBinding(particleFolder, params.particle, 'gravity', {
     label: 'gravity',
     x: { min: -5000, max: 5000, step: 100 },
     y: { min: -5000, max: 5000, step: 100 },
     z: { min: -5000, max: 5000, step: 100 },
   });
-  addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, max: 2000, step: 50, label: 'spawn duration (ms)' });
-  addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, max: 200, step: 5, label: 'spawn size (px)' });
-  addBinding(particleFolder, params.particle, 'scaleWithAge', { min: 0, max: 2, step: 0.1, label: 'scale with age' });
+  addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, step: 50, label: 'spawn duration (ms)' });
+  addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, step: 1, label: 'spawn size (px)' });
+  addBinding(particleFolder, params.particle, 'scaleWithAge', { min: -5, max: 5, step: 0.1, label: 'shrink with age' });
 
   const materialFolder = api.addFolder({ title: 'Material', expanded: true });
   const useDiffuseAsAmbientBinding = addBinding(materialFolder, params.particle, 'useDiffuseAsAmbient', {

@@ -27,7 +27,7 @@ This file gives LLMs and other AI agents enough context to work effectively in t
 
 ## Core concepts (for code edits)
 
-1. **Engine** owns the WebGL2 context, resolution, pixel ratio, and render loop. Constructor: `Engine(canvas, { size: { x, y }, pixelRation, beforeSetup? })`. Note: option is `pixelRation` in the codebase. It provides `createProgramFromShaders(vert, frag)`, `now()`, `resolution`, `pixelRatio`, `gl`, etc.
+1. **Engine** owns the WebGL2 context, resolution, pixel ratio, and render loop. Constructor: `Engine(canvas, { size: { x, y }, pixelRatio, beforeSetup? })`. It provides `createProgramFromShaders(vert, frag)`, `now()`, `resolution`, `pixelRatio`, `gl`, etc.
 2. **Scene** holds entities and projection/view. `scene.add(entity)` and `scene.remove(entity)`. New entities get `setup(projection, view, viewPosition)` when added; the scene’s `draw(time)` calls `entity.draw(time)` on each entity.
 3. **Entity** is abstract: constructor `(engine, program)`, `draw(time)`, `setup(projection, view, viewPosition)`. The emitter sets up the **Camera** uniform block (binding point `Engine.BindingPoints.Camera`) in `setup()`.
 4. **Emitter** is the main particle entity. Constructor: `Emitter(engine, EmitterOptions)`. Options include `orientation: 'billboard' | 'free'`, `texture`, `atlasLayout`, `modelGeometries`, `useLighting`, `useAlphaBlending`. It uses its own **Emitter** uniform block (binding point 1) for per-batch data. Particle batches are added with `emitter.emit(ParticleBatchOptions)`; batches are stored and drawn until they expire (`lifeTime` + `spawnDuration`). Physics-related options (gravity, v0, drag, etc.) are in **pixels** or **seconds** where documented in `src/emitter/types.ts`.
@@ -67,7 +67,7 @@ The demo is a Vite app that showcases the library: one canvas, one scene, one em
 
 1. **Params**: `params = createPersistentParams()`. All Tweakpane bindings read/write `params`; changes auto-save.
 2. **compileConfig**: Builds `ParticleBatchOptions` from `params` plus click position `(originX, originY)`.
-3. **Engine**: `new Engine(canvas, { size: container.clientWidth/Height, pixelRation: 2 })`. Resize listener calls `engine.resize(container.clientWidth, container.clientHeight)`.
+3. **Engine**: `new Engine(canvas, { size: container.clientWidth/Height, pixelRatio: 2 })`. Resize listener calls `engine.resize(container.clientWidth, container.clientHeight)`.
 4. **Scene**: `new Scene(engine, { perspective: 10000 })`. Single scene for the demo.
 5. **Emitter**: Created with `orientation` from params, `atlasLayout: { columns: 2, rows: 1 }`. When orientation changes, `recreateEmitter()` removes old emitter, creates new one, re-adds to scene and re-applies texture. Lighting/alpha toggles call `currentEmitter.setUseLighting` / `setUseAlphaBlending`.
 6. **Emit**: Container click → `currentEmitter.emit(compileConfig(event.clientX, event.clientY))`.

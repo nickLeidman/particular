@@ -1,0 +1,20 @@
+.hint {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  font-size: 12px;
+  color: white;
+  font-family: monospace;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.key {
+  font-weight: bold;
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 2px;
+  border-radius: 2px;
+}
