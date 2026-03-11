@@ -22,6 +22,7 @@ uiContext.onReset = () => {
   for (const b of bindings) b.refresh();
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   app.scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
+  app.applyCamera();
   app.engine.draw();
 };
 uiContext.recreateEmitter = app.recreateEmitter;
@@ -29,6 +30,7 @@ uiContext.setUseLighting = app.setUseLighting;
 uiContext.setLightColor = app.setLightColor;
 uiContext.setUseAlphaBlending = app.setUseAlphaBlending;
 uiContext.applyTextureChoice = app.applyTextureChoice;
+uiContext.applyCamera = app.applyCamera;
 
 app.engine.start();
 

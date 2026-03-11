@@ -7,12 +7,12 @@ import { Vec3 } from '../vec3';
 export class Light {
   private _position: Vec3;
   private _color: Vec3;
-  private readonly onChange?: () => void;
 
-  constructor(options?: { position?: Vec3; color?: Vec3; onChange?: () => void }) {
+  private onUpdateCallbacks: (() => void)[] = [];
+
+  constructor(options?: { position?: Vec3; color?: Vec3 }) {
     this._position = options?.position ?? new Vec3(0, 0, 10000);
     this._color = options?.color ?? new Vec3(0.8, 0.8, 0.8);
-    this.onChange = options?.onChange;
   }
 
   get position(): Vec3 {
@@ -27,11 +27,19 @@ export class Light {
     this._color.r = r;
     this._color.g = g;
     this._color.b = b;
-    this.onChange?.();
+    for (const callback of this.onUpdateCallbacks) {
+      callback();
+    }
   }
 
-  setPosition(x: number, y: number, z: number) {
-    this._position = new Vec3(x, y, z);
-    this.onChange?.();
+  setPosition(position: Vec3) {
+    this._position = position;
+    for (const callback of this.onUpdateCallbacks) {
+      callback();
+    }
+  }
+
+  onUpdate(callback: () => void) {
+    this.onUpdateCallbacks.push(callback);
   }
 }

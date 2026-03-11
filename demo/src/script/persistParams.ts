@@ -25,6 +25,10 @@ const defaultParams = {
   lightColor: { r: 0.8, g: 0.8, b: 0.8 },
   useAlphaBlending: true,
   texture: 'atlas' as TextureChoice,
+  camera: {
+    distance: 10000,
+    type: 'perspective' as 'orthographic' | 'perspective',
+  },
   particle: {
     lifeTime: 4000,
     count: 100,
@@ -108,6 +112,14 @@ function validateParams(loaded: Params): void {
   if (loaded.orientation !== 'billboard' && loaded.orientation !== 'free') {
     loaded.orientation = 'billboard';
   }
+  if (!loaded.camera || typeof loaded.camera.distance !== 'number') {
+    loaded.camera = { distance: 10000, type: 'perspective' };
+  } else {
+    loaded.camera.distance = Math.max(100, Math.min(20000, loaded.camera.distance));
+    if (loaded.camera.type !== 'orthographic' && loaded.camera.type !== 'perspective') {
+      loaded.camera.type = 'perspective';
+    }
+  }
   if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
   if (
     !loaded.lightColor ||
@@ -150,6 +162,7 @@ export function resetParamsToDefaults(params: Params): void {
   params.lightColor = { ...d.lightColor };
   params.useAlphaBlending = d.useAlphaBlending;
   params.texture = d.texture;
+  params.camera = { ...d.camera };
   Object.assign(params.particle, d.particle);
   Object.assign(params.physics, d.physics);
   Object.assign(params.atlas, d.atlas);

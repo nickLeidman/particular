@@ -5,6 +5,9 @@ import {
   ObjectLoader,
   type ParticleBatchOptions,
   Scene,
+  Camera,
+  Light,
+  Vec3,
   TextureLoader,
 } from '@nleidman/particular';
 import cube from '../Chair.obj?raw';
@@ -21,15 +24,17 @@ export type DemoApp = {
   setUseLighting: () => void;
   setLightColor: () => void;
   setUseAlphaBlending: () => void;
+  applyCamera: () => void;
 };
 
 export function createDemoApp(container: HTMLDivElement, params: Params, frameTimeCallbacks: FrameTimeGraphCallbacks | null): DemoApp {
   const canvas = document.createElement('canvas');
+  canvas.style.transform = `scale(${1 / window.devicePixelRatio})`;
   container.appendChild(canvas);
 
   const engine = new Engine(canvas, {
     size: { x: container.clientWidth, y: container.clientHeight },
-    pixelRation: 2,
+    pixelRation: window.devicePixelRatio,
     ...(frameTimeCallbacks && {
       onBeforeDraw: () => frameTimeCallbacks.onBeforeDraw(engine),
       onAfterDraw: () => frameTimeCallbacks.onAfterDraw(engine),
@@ -39,8 +44,16 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   const loader = new ObjectLoader();
   loader.parseOBJ(cube); // keep for possible future body use
 
-  const scene = new Scene(engine, { perspective: 10000 });
-  scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
+  const camera = new Camera(engine, params.camera.type, params.camera.distance);
+  const light = new Light({
+    position: camera.viewPosition,
+    color: new Vec3(params.lightColor.r, params.lightColor.g, params.lightColor.b),
+  });
+  const scene = new Scene({
+    camera,
+    light,
+  });
+  engine.addScene(scene);
 
   let particleTexture: WebGLTexture | null = null;
 
@@ -79,6 +92,11 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
 
   applyTextureChoice();
 
+  function applyCamera() {
+    scene.camera.setDistance(params.camera.distance);
+    scene.camera.setType(params.camera.type);
+  }
+
   return {
     engine,
     scene,
@@ -88,5 +106,6 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     setUseLighting: () => currentEmitter.setUseLighting(params.useLighting),
     setLightColor: () => scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b),
     setUseAlphaBlending: () => currentEmitter.setUseAlphaBlending(params.useAlphaBlending),
+    applyCamera,
   };
 }

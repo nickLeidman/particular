@@ -1,70 +1,49 @@
-import type { Engine } from '../engine/engine';
 import type { Entity } from '../entities/entity/entity';
 import { Light } from './light';
-import { M4 } from '../m4';
-import { Vec3 } from '../vec3';
+import type { Vec3 } from '../vec3';
+import type { Camera } from './camera';
 
 export { Light } from './light';
 
 export class Scene {
   readonly light: Light;
+  readonly camera: Camera;
 
-  private gl: WebGL2RenderingContext;
   private entities: Entity[] = [];
-  private readonly perspective: null | number;
-  private projection: M4;
-  private view: M4;
-  private viewPosition: Vec3;
+  private viewPosition!: Vec3;
 
-  constructor(
-    private engine: Engine,
-    options?: {
-      perspective?: number;
-      /** Light for the scene. If omitted, a default light is created and wired to refresh entities on change. */
-      light?: Light;
-    },
-  ) {
-    this.engine = engine;
-    this.gl = engine.gl;
-    this.perspective = options?.perspective ?? null;
-
-    const gl = this.gl;
-    const resolution = this.engine.resolution;
-
-    this.engine.resetViewport();
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    if (this.perspective === null) {
-      const longestDimension = Math.max(resolution.x, resolution.y);
-      this.projection = M4.orthographic(0, resolution.x, resolution.y, 0, 0.1, longestDimension * 2);
-      this.view = M4.translation(0, 0, -longestDimension);
-      this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, 0);
-    } else {
-      const fieldOfViewInRadians = 2 * Math.atan(resolution.y / 2 / this.perspective);
-      this.projection = M4.perspective(fieldOfViewInRadians, resolution.x / resolution.y, 100, this.perspective * 2);
-      this.view = M4.translation(-resolution.x / 2, -resolution.y / 2, -this.perspective);
-      this.viewPosition = new Vec3(resolution.x / 2, resolution.y / 2, this.perspective);
-    }
-
-    this.light = options?.light ?? new Light({ position: this.viewPosition, onChange: () => this.refreshEntitySetup() });
+  constructor(options: {
+    /** Light for the scene. If omitted, a default light is created and wired to refresh entities on change. */
+    light?: Light;
+    camera: Camera;
+  }) {
+    this.light = options?.light ?? new Light({ position: this.viewPosition });
+    this.light.onUpdate(() => this.refreshEntitySetup());
+    this.camera = options.camera;
+    this.camera.onUpdate(() => {
+      this.light.setPosition(this.camera.viewPosition);
+      this.refreshEntitySetup();
+    });
 
     for (const entity of this.entities) {
-      entity.setup(this.projection, this.view, this.viewPosition, this.light);
+      entity.setup(this.camera, this.light);
     }
+  }
 
-    engine.addScene(this);
+  update() {
+    this.camera.update();
   }
 
   /** Re-run setup on all entities with current camera and light. Called automatically when the default light changes. */
   refreshEntitySetup() {
     for (const entity of this.entities) {
-      entity.setup(this.projection, this.view, this.viewPosition, this.light);
+      entity.setup(this.camera, this.light);
     }
   }
 
   add(entity: Entity) {
     this.entities.push(entity);
-    entity.setup(this.projection, this.view, this.viewPosition, this.light);
+    entity.setup(this.camera, this.light);
   }
 
   remove(entity: Entity) {

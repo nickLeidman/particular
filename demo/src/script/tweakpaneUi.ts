@@ -13,6 +13,7 @@ export type TweakpaneUiContext = {
   setLightColor?: () => void;
   setUseAlphaBlending?: () => void;
   applyTextureChoice?: () => void;
+  applyCamera?: () => void;
 };
 
 export type BindingApi = { refresh: () => void };
@@ -40,13 +41,24 @@ export function createTweakpaneUi(
     enableFrameTimeGraph?: boolean;
   },
 ): TweakpaneUiResult {
+  const container = document.createElement('div');
+  container.classList.add('pane-container');
+  document.body.appendChild(container);
+
+  const cameraPane = new Pane({ title: 'Camera' });
+  container.appendChild(cameraPane.element);
+
+  const lightingPane = new Pane({ title: 'Lighting' });
+  container.appendChild(lightingPane.element);
+
   const pane = new Pane({ title: 'Emitter' });
-  pane.element.classList.add('pane-floating');
-  document.body.appendChild(pane.element);
+  container.appendChild(pane.element);
 
   const frameTimeCallbacks = options.enableFrameTimeGraph === true ? setupFrameTimeGraph(pane) : null;
 
   const api: PaneLike = pane as unknown as PaneLike;
+  const cameraApi: PaneLike = cameraPane as unknown as PaneLike;
+  const lightingApi: PaneLike = lightingPane as unknown as PaneLike;
   const bindings: BindingApi[] = [];
 
   function addBinding(folder: PaneLike, obj: object, key: string, opts?: object): BindingApi {
@@ -56,6 +68,19 @@ export function createTweakpaneUi(
   }
 
   const orientationFolder = api.addFolder({ title: 'Orientation', expanded: true });
+
+  const cameraDistanceBinding = addBinding(cameraApi, params.camera, 'distance', {
+    min: 100,
+    max: 20000,
+    step: 100,
+    label: 'distance',
+  }) as ChangeableBindingApi;
+  cameraDistanceBinding.on('change', () => context.applyCamera?.());
+  const cameraTypeBinding = addBinding(cameraApi, params.camera, 'type', {
+    options: { Perspective: 'perspective', Orthographic: 'orthographic' },
+    label: 'type',
+  }) as ChangeableBindingApi;
+  cameraTypeBinding.on('change', () => context.applyCamera?.());
 
   const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
   addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, max: 20000, step: 100, label: 'lifetime (ms)' });
@@ -117,6 +142,17 @@ export function createTweakpaneUi(
   addBinding(physicsFolder, params.physics, 'mass', { min: 1e-7, max: 0.01, step: 1e-6, label: 'mass (kg)' });
   addBinding(physicsFolder, params.physics, 'momentOfInertia', { min: 1e-7, max: 0.01, step: 1e-6, label: 'moment of inertia' });
 
+  const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
+  const useAlphaBlendingBinding = addBinding(renderingFolder, params, 'useAlphaBlending', {
+    label: 'Alpha blending',
+  }) as ChangeableBindingApi;
+  useAlphaBlendingBinding.on('change', () => context.setUseAlphaBlending?.());
+  const textureBinding = addBinding(renderingFolder, params, 'texture', {
+    options: { None: 'none', 'Particle atlas': 'atlas' },
+    label: 'Texture',
+  }) as ChangeableBindingApi;
+  textureBinding.on('change', () => context.applyTextureChoice?.());
+
   const atlasFolder = api.addFolder({ title: 'Atlas', expanded: false });
   addBinding(atlasFolder, params.atlas, 'column', { min: 0, max: 16, step: 1, label: 'offset column' });
   addBinding(atlasFolder, params.atlas, 'row', { min: 0, max: 16, step: 1, label: 'offset row' });
@@ -136,23 +172,13 @@ export function createTweakpaneUi(
     navigator.clipboard.writeText(JSON.stringify(config, null, 2));
   });
 
-  const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
-  const useLightingBinding = addBinding(renderingFolder, params, 'useLighting', { label: 'Lighting' }) as ChangeableBindingApi;
+  const useLightingBinding = addBinding(lightingApi, params, 'useLighting', { label: 'Enabled' }) as ChangeableBindingApi;
   useLightingBinding.on('change', () => context.setUseLighting?.());
-  const lightColorBinding = addBinding(renderingFolder, params, 'lightColor', {
+  const lightColorBinding = addBinding(lightingApi, params, 'lightColor', {
     color: { type: 'float' },
-    label: 'Light color',
+    label: 'Color',
   }) as ChangeableBindingApi;
   lightColorBinding.on('change', () => context.setLightColor?.());
-  const useAlphaBlendingBinding = addBinding(renderingFolder, params, 'useAlphaBlending', {
-    label: 'Alpha blending',
-  }) as ChangeableBindingApi;
-  useAlphaBlendingBinding.on('change', () => context.setUseAlphaBlending?.());
-  const textureBinding = addBinding(renderingFolder, params, 'texture', {
-    options: { None: 'none', 'Particle atlas': 'atlas' },
-    label: 'Texture',
-  }) as ChangeableBindingApi;
-  textureBinding.on('change', () => context.applyTextureChoice?.());
 
   const orientationBinding = addBinding(orientationFolder, params, 'orientation', {
     options: { Billboard: 'billboard', Free: 'free' },

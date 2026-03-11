@@ -163,6 +163,10 @@ export class Engine {
     this.textureB = this.createFrameTexture();
     this.buffer = this.createFrameBuffer();
 
+    for (const scene of this.scenes) {
+      scene.update();
+    }
+
     this.draw();
   }
 
