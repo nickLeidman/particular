@@ -93,6 +93,7 @@ export class Emitter extends Entity {
       spawnDuration: options.spawnDuration ?? 0,
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
       scaleWithAge: options.scaleWithAge ?? 0,
+      randomStartRotation: options.randomStartRotation ?? false,
       drag: (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
       Ka: options.Ka ?? { r: 1, g: 1, b: 1 },
@@ -145,10 +146,10 @@ export class Emitter extends Entity {
       this.atlasLayout.columns,
       this.atlasLayout.rows,
 
-      // vec2 and 2 padding bytes
+      // vec2, randomStartRotation (0/1), padding
       particleBatch.atlas.offset.column,
       particleBatch.atlas.offset.row,
-      0, // padding
+      particleBatch.randomStartRotation ? 1 : 0,
       0, // padding
 
       // vec3 and a padding byte

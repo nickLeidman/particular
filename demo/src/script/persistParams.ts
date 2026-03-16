@@ -38,6 +38,7 @@ const defaultParams = {
     v0: { x: 7000, y: 7000, z: 7000 },
     velocityBias: { x: 0, y: 0.8, z: 0 },
     omega0: 7,
+    randomStartRotation: false,
     gravity: { x: 0, y: -500, z: 0 },
     spawnDuration: 200,
     spawnSize: 60,
@@ -149,6 +150,9 @@ function validateParams(loaded: Params): void {
   loaded.atlas.row = Math.max(0, Math.min(loaded.atlasLayout.rows - 1, Math.floor(loaded.atlas.row)));
   if (typeof loaded.particle.useDiffuseAsAmbient !== 'boolean') {
     loaded.particle.useDiffuseAsAmbient = true;
+  }
+  if (typeof loaded.particle.randomStartRotation !== 'boolean') {
+    loaded.particle.randomStartRotation = false;
   }
   loaded.particle.Ns = nearestPowerOfTwo(loaded.particle.Ns);
 }

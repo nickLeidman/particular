@@ -50,6 +50,11 @@ export interface ParticleBatchOptions {
    * Each particle in a batch will receive a random velocity between `-omega0` and `omega0`.
    */
   omega0: number;
+  /**
+   * When true, each particle gets a random initial rotation; when false, all start at 0.
+   * @default false
+   */
+  randomStartRotation?: boolean;
   /** Gravity of the particle batch in **pixels/s^2** */
   gravity: { x: number; y: number; z: number };
   /**
@@ -109,6 +114,7 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
   scaleWithAge: number;
+  randomStartRotation: boolean;
   drag: number;
   angularDrag: number;
   Ka: { r: number; g: number; b: number };

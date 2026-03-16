@@ -20,6 +20,8 @@ export type TweakpaneUiContext = {
   onLoadCustomTexture?: (file: File) => void;
   /** Called when user clicks "Clear custom texture". */
   onClearCustomTexture?: () => void;
+  /** Toggle debug overlay (e.g. noise preview). */
+  setNoisePreviewVisible?: (visible: boolean) => void;
 };
 
 export type BindingApi = { refresh: () => void };
@@ -62,11 +64,15 @@ export function createTweakpaneUi(
   const pane = new Pane({ title: 'Emitter' });
   container.appendChild(pane.element);
 
+  const debugPane = new Pane({ title: 'Debug' });
+  container.appendChild(debugPane.element);
+
   const frameTimeCallbacks = options.enableFrameTimeGraph === true ? setupFrameTimeGraph(pane) : null;
 
   const api: PaneLike = pane as unknown as PaneLike;
   const cameraApi: PaneLike = cameraPane as unknown as PaneLike;
   const lightingApi: PaneLike = lightingPane as unknown as PaneLike;
+  const debugApi: PaneLike = debugPane as unknown as PaneLike;
   const bindings: BindingApi[] = [];
 
   function addBinding(folder: PaneLike, obj: object, key: string, opts?: object): BindingApi {
@@ -113,6 +119,7 @@ export function createTweakpaneUi(
     z: { min: -1, max: 1, step: 0.1 },
   });
   addBinding(particleFolder, params.particle, 'omega0', { min: 0, step: 0.5, label: 'angular velocity (rad/s)' });
+  addBinding(particleFolder, params.particle, 'randomStartRotation', { label: 'random start rotation' });
   addBinding(particleFolder, params.particle, 'gravity', {
     label: 'gravity',
     x: { min: -5000, max: 5000, step: 100 },
@@ -217,6 +224,12 @@ export function createTweakpaneUi(
   });
   addBinding(atlasFolder, params.atlas, 'sweepStepTime', { min: 0, max: 200, step: 1, label: 'sweep step (ms)' });
   addBinding(atlasFolder, params.atlas, 'sweepStepCount', { min: 1, max: 32, step: 1, label: 'sweep steps' });
+
+  const debugState = { noisePreview: false };
+  const noisePreviewBinding = addBinding(debugApi, debugState, 'noisePreview', {
+    label: 'Noise preview',
+  }) as ChangeableBindingApi;
+  noisePreviewBinding.on('change', () => context.setNoisePreviewVisible?.(debugState.noisePreview));
 
   api.addButton({ title: 'Reset to defaults' }).on('click', () => {
     context.onReset?.();

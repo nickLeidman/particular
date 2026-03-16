@@ -17,6 +17,7 @@ export function compileConfig(params: Params, originX: number, originY: number):
     v0: { ...p.v0 },
     velocityBias: { ...p.velocityBias },
     omega0: p.omega0,
+    randomStartRotation: p.randomStartRotation,
     gravity: { ...p.gravity },
     spawnDuration: p.spawnDuration,
     Cd: ph.Cd,

@@ -7,6 +7,7 @@ import {
   Scene,
   Camera,
   Light,
+  SimplexNoise,
   Vec3,
   TextureLoader,
 } from '@nleidman/particular';
@@ -30,6 +31,8 @@ export type DemoApp = {
   setCustomTextureFromBlob: (blob: Blob) => Promise<void>;
   /** Clear the stored custom texture and stop using it. */
   clearCustomTexture: () => void;
+  /** Toggle debug overlay that draws the simplex noise texture full-screen. */
+  setNoisePreviewVisible: (visible: boolean) => void;
 };
 
 export function createDemoApp(container: HTMLDivElement, params: Params, frameTimeCallbacks: FrameTimeGraphCallbacks | null): DemoApp {
@@ -120,6 +123,23 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
 
   applyTextureChoice();
 
+  const simplexNoise = new SimplexNoise(engine, {
+    width: 1024,
+    height: 1024,
+    scale: 0.05,
+    period: 1,
+  });
+  simplexNoise.render();
+  const noiseOverlayCallback = () => simplexNoise.draw();
+  function setNoisePreviewVisible(visible: boolean) {
+    if (visible) {
+      engine.attachOverlay(noiseOverlayCallback);
+    } else {
+      engine.removeOverlay(noiseOverlayCallback);
+      engine.draw();
+    }
+  }
+
   function applyCamera() {
     scene.camera.setDistance(params.camera.distance);
     scene.camera.setType(params.camera.type);
@@ -138,5 +158,6 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     applyCamera,
     setCustomTextureFromBlob,
     clearCustomTexture,
+    setNoisePreviewVisible,
   };
 }

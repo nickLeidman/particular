@@ -52,6 +52,7 @@ uiContext.onClearCustomTexture = () => {
       app.applyTextureChoice();
     });
 };
+uiContext.setNoisePreviewVisible = app.setNoisePreviewVisible;
 
 getCustomTexture().then((blob) => {
   if (blob) {

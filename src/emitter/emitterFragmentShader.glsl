@@ -34,6 +34,8 @@ layout(std140) uniform Emitter {
     float omega0;
     vec2 atlasSize;
     vec2 atlasOffset;
+    float randomStartRotation;
+    float _padAtlas;
     vec3 atlasSweepOptions;
     vec3 particleScaleVec;
 

@@ -28,6 +28,7 @@ export class Engine {
 
   private currentRenderTarget: 'A' | 'B' = 'A';
   private postProcessingPipeline: ((sourceTexture: WebGLTexture) => void)[] = [];
+  private overlayCallbacks: (() => void)[] = [];
   timer: GpuTimer;
 
   private onBeforeDraw: (() => void) | undefined;
@@ -110,6 +111,25 @@ export class Engine {
 
     // reset the render target
     this.currentRenderTarget = 'A';
+
+    // overlay: draw to current framebuffer (e.g. debug views)
+    if (this.overlayCallbacks.length > 0) {
+      this.resetViewport();
+      for (const cb of this.overlayCallbacks) {
+        cb();
+      }
+    }
+  }
+
+  /** Register a callback to draw on top of the scene after post-processing. Use for debug overlays. */
+  attachOverlay(callback: () => void): void {
+    this.overlayCallbacks.push(callback);
+  }
+
+  /** Remove an overlay callback. */
+  removeOverlay(callback: () => void): void {
+    const i = this.overlayCallbacks.indexOf(callback);
+    if (i !== -1) this.overlayCallbacks.splice(i, 1);
   }
 
   getCurrentRenderTarget(): [WebGLTexture] {

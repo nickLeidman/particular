@@ -36,6 +36,8 @@ layout(std140) uniform Emitter {
     vec2 atlasSize;
 
     vec2 atlasOffset;
+    float randomStartRotation;
+    float _padAtlas;
 
     vec3 atlasSweepOptions;
 
@@ -112,7 +114,9 @@ void main() {
     mat4 scaleMatrix = scale(mat4(1.0), sizeScale);
 
     /*Rotation*/
-    float startAngle = sampleNoiseNormalized(instanceIndex, batchHash + NOISE_SPIN_START_ANGLE) * 2.0 * PI;
+    float startAngle = randomStartRotation > 0.5
+        ? sampleNoiseNormalized(instanceIndex, batchHash + NOISE_SPIN_START_ANGLE) * 2.0 * PI
+        : 0.0;
 
     float angularVelocitySpawnDistribution = sampleNoise(instanceIndex, batchHash + 100.0) * 2.0 - 1.0;
     float angularVelocityDirection = sign(angularVelocitySpawnDistribution);
