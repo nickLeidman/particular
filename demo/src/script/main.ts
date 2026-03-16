@@ -1,4 +1,5 @@
 import { compileConfig } from './compileConfig';
+import { clearCustomTexture, getCustomTexture, setCustomTexture } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
 import { type BindingApi, createTweakpaneUi, type TweakpaneUiContext } from './tweakpaneUi';
@@ -9,7 +10,7 @@ const ENABLE_FRAME_TIME_GRAPH = false;
 const params = createPersistentParams();
 const uiContext: TweakpaneUiContext = {};
 
-const { bindings, setKaDisabled, frameTimeCallbacks } = createTweakpaneUi(params, uiContext, {
+const { bindings, setKaDisabled, frameTimeCallbacks, setCustomTextureAvailable } = createTweakpaneUi(params, uiContext, {
   compileConfig,
   enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
 });
@@ -32,6 +33,31 @@ uiContext.setUseAlphaBlending = app.setUseAlphaBlending;
 uiContext.applyTextureChoice = app.applyTextureChoice;
 uiContext.applyCamera = app.applyCamera;
 uiContext.updateBatches = () => app.updateBatches(compileConfig(params, 0, 0));
+
+uiContext.onLoadCustomTexture = (file: File) => {
+  setCustomTexture(file)
+    .then(() => app.setCustomTextureFromBlob(file))
+    .then(() => {
+      params.texture = 'custom';
+      setCustomTextureAvailable(true);
+      app.applyTextureChoice();
+    });
+};
+uiContext.onClearCustomTexture = () => {
+  if (params.texture === 'custom') params.texture = 'atlas';
+  clearCustomTexture()
+    .then(() => {
+      app.clearCustomTexture();
+      setCustomTextureAvailable(false);
+      app.applyTextureChoice();
+    });
+};
+
+getCustomTexture().then((blob) => {
+  if (blob) {
+    app.setCustomTextureFromBlob(blob).then(() => setCustomTextureAvailable(true));
+  }
+});
 
 app.engine.start();
 

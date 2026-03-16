@@ -2,7 +2,7 @@ import type { EmitterOrientation } from '@nleidman/particular';
 
 const STORAGE_KEY = 'particular-demo-params';
 
-export type TextureChoice = 'none' | 'atlas';
+export type TextureChoice = 'none' | 'atlas' | 'custom';
 
 /** Specular exponent (Ns) limited to powers of two for cheaper pow() on GPU. */
 export const Ns_POW2 = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
@@ -25,6 +25,7 @@ const defaultParams = {
   lightColor: { r: 0.8, g: 0.8, b: 0.8 },
   useAlphaBlending: false,
   texture: 'none' as TextureChoice,
+  atlasLayout: { columns: 1, rows: 1 },
   camera: {
     distance: 10000,
     type: 'perspective' as 'orthographic' | 'perspective',
@@ -130,10 +131,22 @@ function validateParams(loaded: Params): void {
     loaded.lightColor = { r: 0.8, g: 0.8, b: 0.8 };
   }
   if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
-  if (loaded.texture !== 'none' && loaded.texture !== 'atlas') loaded.texture = 'atlas';
+  if (loaded.texture !== 'none' && loaded.texture !== 'atlas' && loaded.texture !== 'custom') loaded.texture = 'atlas';
+  if (
+    !loaded.atlasLayout ||
+    typeof loaded.atlasLayout.columns !== 'number' ||
+    typeof loaded.atlasLayout.rows !== 'number'
+  ) {
+    loaded.atlasLayout = { columns: 1, rows: 1 };
+  } else {
+    loaded.atlasLayout.columns = Math.max(1, Math.min(32, Math.floor(loaded.atlasLayout.columns)));
+    loaded.atlasLayout.rows = Math.max(1, Math.min(32, Math.floor(loaded.atlasLayout.rows)));
+  }
   if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
     loaded.atlas.sweepBy = 'row';
   }
+  loaded.atlas.column = Math.max(0, Math.min(loaded.atlasLayout.columns - 1, Math.floor(loaded.atlas.column)));
+  loaded.atlas.row = Math.max(0, Math.min(loaded.atlasLayout.rows - 1, Math.floor(loaded.atlas.row)));
   if (typeof loaded.particle.useDiffuseAsAmbient !== 'boolean') {
     loaded.particle.useDiffuseAsAmbient = true;
   }
@@ -162,6 +175,7 @@ export function resetParamsToDefaults(params: Params): void {
   params.lightColor = { ...d.lightColor };
   params.useAlphaBlending = d.useAlphaBlending;
   params.texture = d.texture;
+  params.atlasLayout = { ...d.atlasLayout };
   params.camera = { ...d.camera };
   Object.assign(params.particle, d.particle);
   Object.assign(params.physics, d.physics);

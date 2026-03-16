@@ -2,7 +2,7 @@ import type { ParticleBatchOptions } from '@nleidman/particular';
 import { Pane } from 'tweakpane';
 import type { FrameTimeGraphCallbacks } from './frameTimeGraph';
 import { setupFrameTimeGraph } from './frameTimeGraph';
-import type { Params } from './persistParams';
+import type { Params, TextureChoice } from './persistParams';
 import { Ns_POW2 } from './persistParams';
 
 /** Callbacks wired by the app after engine/scene/emitter exist. Reset is called when user clicks Reset to defaults. */
@@ -16,6 +16,10 @@ export type TweakpaneUiContext = {
   applyCamera?: () => void;
   /** Apply current particle/physics/atlas/material params to all existing batches (realtime). */
   updateBatches?: () => void;
+  /** Called when user selects a file via "Load texture". */
+  onLoadCustomTexture?: (file: File) => void;
+  /** Called when user clicks "Clear custom texture". */
+  onClearCustomTexture?: () => void;
 };
 
 export type BindingApi = { refresh: () => void };
@@ -25,6 +29,8 @@ export type TweakpaneUiResult = {
   bindings: BindingApi[];
   setKaDisabled: (disabled: boolean) => void;
   frameTimeCallbacks: FrameTimeGraphCallbacks | null;
+  /** Call when a custom texture is saved or removed so the texture picker can show/hide "Custom". */
+  setCustomTextureAvailable: (available: boolean) => void;
 };
 
 // Tweakpane 4 types don't expose FolderApi methods on Pane; they exist at runtime
@@ -33,7 +39,7 @@ type PaneLike = {
   addBinding: (obj: object, key: string, opts?: object) => BindingApi;
   addButton: (opts: { title: string }) => { on: (ev: string, fn: () => void) => void };
 };
-type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void };
+type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void; dispose?: () => void };
 
 export function createTweakpaneUi(
   params: Params,
@@ -149,13 +155,60 @@ export function createTweakpaneUi(
     label: 'Alpha blending',
   }) as ChangeableBindingApi;
   useAlphaBlendingBinding.on('change', () => context.setUseAlphaBlending?.());
-  const textureBinding = addBinding(renderingFolder, params, 'texture', {
-    options: { None: 'none', 'Particle atlas': 'atlas' },
-    label: 'Texture',
-  }) as ChangeableBindingApi;
-  textureBinding.on('change', () => context.applyTextureChoice?.());
+
+  let customTextureAvailable = false;
+  let textureBinding: ChangeableBindingApi | null = null;
+
+  function refreshTextureBinding(): void {
+    if (textureBinding?.dispose) {
+      textureBinding.dispose();
+      const i = bindings.indexOf(textureBinding);
+      if (i >= 0) bindings.splice(i, 1);
+    }
+    const options: Record<string, TextureChoice> = { None: 'none', 'Particle atlas': 'atlas' };
+    if (customTextureAvailable) options['Custom'] = 'custom';
+    textureBinding = addBinding(renderingFolder, params, 'texture', { options, label: 'Texture' }) as ChangeableBindingApi;
+    textureBinding.on('change', () => context.applyTextureChoice?.());
+  }
+  refreshTextureBinding();
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+  document.body.appendChild(fileInput);
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) {
+      context.onLoadCustomTexture?.(file);
+      fileInput.value = '';
+    }
+  });
+
+  renderingFolder.addButton({ title: 'Load texture' }).on('click', () => fileInput.click());
+  renderingFolder.addButton({ title: 'Clear custom texture' }).on('click', () => context.onClearCustomTexture?.());
+
+  function setCustomTextureAvailable(available: boolean): void {
+    if (available === customTextureAvailable) return;
+    customTextureAvailable = available;
+    refreshTextureBinding();
+  }
 
   const atlasFolder = api.addFolder({ title: 'Atlas', expanded: false });
+  const atlasColumnsBinding = addBinding(atlasFolder, params.atlasLayout, 'columns', {
+    min: 1,
+    max: 32,
+    step: 1,
+    label: 'columns',
+  }) as ChangeableBindingApi;
+  atlasColumnsBinding.on('change', () => context.recreateEmitter?.());
+  const atlasRowsBinding = addBinding(atlasFolder, params.atlasLayout, 'rows', {
+    min: 1,
+    max: 32,
+    step: 1,
+    label: 'rows',
+  }) as ChangeableBindingApi;
+  atlasRowsBinding.on('change', () => context.recreateEmitter?.());
   addBinding(atlasFolder, params.atlas, 'column', { min: 0, max: 16, step: 1, label: 'offset column' });
   addBinding(atlasFolder, params.atlas, 'row', { min: 0, max: 16, step: 1, label: 'offset row' });
   addBinding(atlasFolder, params.atlas, 'sweepBy', {
@@ -193,5 +246,6 @@ export function createTweakpaneUi(
     bindings,
     setKaDisabled,
     frameTimeCallbacks,
+    setCustomTextureAvailable,
   };
 }

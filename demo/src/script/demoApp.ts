@@ -26,6 +26,10 @@ export type DemoApp = {
   setLightColor: () => void;
   setUseAlphaBlending: () => void;
   applyCamera: () => void;
+  /** Load a custom texture from a blob (e.g. user upload). Resolves when texture is ready. */
+  setCustomTextureFromBlob: (blob: Blob) => Promise<void>;
+  /** Clear the stored custom texture and stop using it. */
+  clearCustomTexture: () => void;
 };
 
 export function createDemoApp(container: HTMLDivElement, params: Params, frameTimeCallbacks: FrameTimeGraphCallbacks | null): DemoApp {
@@ -57,11 +61,12 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   engine.addScene(scene);
 
   let particleTexture: WebGLTexture | null = null;
+  let customTexture: WebGLTexture | null = null;
 
   function createEmitter(orientation: EmitterOrientation): Emitter {
     return new Emitter(engine, {
       orientation,
-      atlasLayout: { columns: 2, rows: 1 },
+      atlasLayout: { columns: params.atlasLayout.columns, rows: params.atlasLayout.rows },
       useLighting: params.useLighting,
       useAlphaBlending: params.useAlphaBlending,
     });
@@ -73,6 +78,8 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   function applyTextureChoice() {
     if (params.texture === 'atlas' && particleTexture) {
       currentEmitter.setTexture(particleTexture);
+    } else if (params.texture === 'custom' && customTexture) {
+      currentEmitter.setTexture(customTexture);
     } else {
       currentEmitter.setTexture(null);
     }
@@ -93,6 +100,24 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     applyTextureChoice();
   });
 
+  function setCustomTextureFromBlob(blob: Blob): Promise<void> {
+    const url = URL.createObjectURL(blob);
+    return textureLoader.load(url).then((texture: WebGLTexture) => {
+      URL.revokeObjectURL(url);
+      if (customTexture) engine.gl.deleteTexture(customTexture);
+      customTexture = texture;
+      applyTextureChoice();
+    });
+  }
+
+  function clearCustomTexture(): void {
+    if (customTexture) {
+      engine.gl.deleteTexture(customTexture);
+      customTexture = null;
+    }
+    applyTextureChoice();
+  }
+
   applyTextureChoice();
 
   function applyCamera() {
@@ -111,5 +136,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     setLightColor: () => scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b),
     setUseAlphaBlending: () => currentEmitter.setUseAlphaBlending(params.useAlphaBlending),
     applyCamera,
+    setCustomTextureFromBlob,
+    clearCustomTexture,
   };
 }

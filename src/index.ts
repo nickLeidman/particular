@@ -4,6 +4,7 @@ export * from './entities';
 export * from './loaders';
 export * from './m3';
 export * from './m4';
+export * from './noise/simplex/simplexNoise';
 export * from './scene';
 export * from './textureRenderer/quadRenderer';
 export * from './vec2';
