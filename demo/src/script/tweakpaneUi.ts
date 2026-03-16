@@ -118,6 +118,12 @@ export function createTweakpaneUi(
     y: { min: -1, max: 1, step: 0.1 },
     z: { min: -1, max: 1, step: 0.1 },
   });
+  addBinding(particleFolder, params.particle, 'velocitySpread', {
+    label: 'velocity spread',
+    x: { min: 0, max: 1, step: 0.05 },
+    y: { min: 0, max: 1, step: 0.05 },
+    z: { min: 0, max: 1, step: 0.05 },
+  });
   addBinding(particleFolder, params.particle, 'omega0', { min: 0, step: 0.5, label: 'angular velocity (rad/s)' });
   addBinding(particleFolder, params.particle, 'randomStartRotation', { label: 'random start rotation' });
   addBinding(particleFolder, params.particle, 'gravity', {

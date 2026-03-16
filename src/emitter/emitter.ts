@@ -63,7 +63,7 @@ export class Emitter extends Entity {
     this.particleBuffer = particleBuffer;
     gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), Engine.BindingPoints.Emitter);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Emitter, this.particleBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, 68 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, 72 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
 
@@ -97,6 +97,7 @@ export class Emitter extends Entity {
       ...options,
       scale: options.scale ?? { x: 1, y: 1, z: 1 },
       velocityBias: options.velocityBias ?? { x: 0, y: 0, z: 0 },
+      velocitySpread: options.velocitySpread ?? { x: 1, y: 1, z: 1 },
       spawnDuration: options.spawnDuration ?? 0,
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
       scaleWithAge: options.scaleWithAge ?? 0,
@@ -133,13 +134,18 @@ export class Emitter extends Entity {
       particleBatch.gravity.z, // gravity z
       0, // padding
 
-      // vec3 and a padding byte
-      particleBatch.v0.x, // vx
-      particleBatch.v0.y, // vy
-      particleBatch.v0.z, // vz
+      // vec3 v0, vec3 velocitySpread (std140: each vec3 + padding)
+      particleBatch.v0.x,
+      particleBatch.v0.y,
+      particleBatch.v0.z,
       0, // padding
 
-      // vec3 and a size in pixels
+      particleBatch.velocitySpread.x,
+      particleBatch.velocitySpread.y,
+      particleBatch.velocitySpread.z,
+      0, // padding
+
+      // vec3 velocityBias, float size
       particleBatch.velocityBias.x,
       particleBatch.velocityBias.y,
       particleBatch.velocityBias.z,

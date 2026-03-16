@@ -30,7 +30,10 @@ layout(std140) uniform Emitter {
     // padding byte
 
     vec3 v0;
-    // padding byte
+    // padding
+
+    vec3 velocitySpread;
+    // padding
 
     vec3 velocityBias;
     float size;

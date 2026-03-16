@@ -27,7 +27,10 @@ layout(std140) uniform Emitter {
     // padding byte
 
     vec3 v0;
-    // padding byte
+    // padding
+
+    vec3 velocitySpread;
+    // padding
 
     vec3 velocityBias;
     float size;
@@ -156,9 +159,9 @@ void main() {
     mat4 rotationMatrix = uBillboard > 0.5 ? rotationMatrixBillboard : rotationMatrixFree;
 
     vec3 velocity = vec3(
-        (sampleNoiseNormalized(instanceIndex, batchHash + 30.0) + velocityBias.x) * v0.x,
-        (sampleNoiseNormalized(instanceIndex, batchHash + 40.0) + velocityBias.y) * v0.y,
-        (sampleNoiseNormalized(instanceIndex, batchHash + 50.0) + velocityBias.z) * v0.z
+        (sampleNoiseNormalized(instanceIndex, batchHash + 30.0) * velocitySpread.x + velocityBias.x) * v0.x,
+        (sampleNoiseNormalized(instanceIndex, batchHash + 40.0) * velocitySpread.y + velocityBias.y) * v0.y,
+        (sampleNoiseNormalized(instanceIndex, batchHash + 50.0) * velocitySpread.z + velocityBias.z) * v0.z
     );
 
     // bias spawn based on velocity direction (avoid normalize(zero) => NaN)

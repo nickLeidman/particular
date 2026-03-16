@@ -46,6 +46,11 @@ export interface ParticleBatchOptions {
    */
   velocityBias?: { x: number; y: number; z: number };
   /**
+   * Per-axis fraction of the full velocity range used for random spread. 1 = full range; 0.5 = half spread; 0 = no spread.
+   * @default { x: 1, y: 1, z: 1 }
+   */
+  velocitySpread?: { x: number; y: number; z: number };
+  /**
    * Initial angular velocity of the particle in **radians/s**.
    * Each particle in a batch will receive a random velocity between `-omega0` and `omega0`.
    */
@@ -119,6 +124,7 @@ export interface ParticleBatchOptions {
 export interface ParticleBatchProcessed extends ParticleBatchOptions {
   scale: { x: number; y: number; z: number };
   velocityBias: { x: number; y: number; z: number };
+  velocitySpread: { x: number; y: number; z: number };
   spawnDuration: number;
   atlas: {
     offset: { column: number; row: number };

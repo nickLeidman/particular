@@ -37,6 +37,7 @@ const defaultParams = {
     scale: { x: 2, y: 1, z: 1 },
     v0: { x: 7000, y: 7000, z: 7000 },
     velocityBias: { x: 0, y: 0.8, z: 0 },
+    velocitySpread: { x: 1, y: 1, z: 1 },
     omega0: 7,
     randomStartRotation: false,
     gravity: { x: 0, y: -500, z: 0 },
@@ -110,6 +111,10 @@ function migrateLegacy(parsed: Record<string, unknown>): void {
       z: (p.gravityZ as number) ?? 0,
     };
   }
+  if (p && typeof p.velocitySpread === 'number') {
+    const s = Math.max(0, Math.min(1, p.velocitySpread as number));
+    p.velocitySpread = { x: s, y: s, z: s };
+  }
 }
 
 function validateParams(loaded: Params): void {
@@ -155,6 +160,22 @@ function validateParams(loaded: Params): void {
   }
   if (typeof loaded.particle.randomStartRotation !== 'boolean') {
     loaded.particle.randomStartRotation = false;
+  }
+  const vs = loaded.particle.velocitySpread;
+  if (
+    !vs ||
+    typeof vs !== 'object' ||
+    typeof vs.x !== 'number' ||
+    typeof vs.y !== 'number' ||
+    typeof vs.z !== 'number'
+  ) {
+    loaded.particle.velocitySpread = { x: 1, y: 1, z: 1 };
+  } else {
+    loaded.particle.velocitySpread = {
+      x: Math.max(0, Math.min(1, vs.x)),
+      y: Math.max(0, Math.min(1, vs.y)),
+      z: Math.max(0, Math.min(1, vs.z)),
+    };
   }
   loaded.particle.Ns = nearestPowerOfTwo(loaded.particle.Ns);
 }

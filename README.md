@@ -56,17 +56,21 @@ export interface ParticleBatchOptions {
   scale?: { x: number; y: number; z: number };
   /** Origin of the particle in **pixels**, relative to the top left corner*/
   origin: { x: number; y: number };
-  /** Initial velocity of the particle in **pixels/s**. Each particle in a batch will receive a random velocity between `-v0` and `v0` */
+  /** Initial velocity of the particle in **pixels/s**. Each particle gets a random velocity in [bias·v0 − spread·v0, bias·v0 + spread·v0] per axis; see `velocityBias` and `velocitySpread`. */
   v0: { x: number; y: number; z: number };
   /**
-   * Velocity bias of a particle in fractions of `v0` for each axis.
-   * Used to skew velocity distribution.
+   * Velocity bias of a particle in fractions of `v0` for each axis (shifts the center of the random range).
    * For example, if v0 is 10 px/s and velocity bias is 0, particle velocity will be between -10 and 10 px/s.
-   * If velocity bias is 0.5, particle velocity will be between -5 and 15 px/s.
+   * If velocity bias is 0.5, particle velocity will be between -5 and 15 px/s (with velocitySpread 1).
    *
    * @default { x: 0, y: 0, z: 0 }
    */
   velocityBias?: { x: number; y: number; z: number };
+  /**
+   * Per-axis fraction of the full velocity range used for random spread. 1 = full range; 0.5 = half spread; 0 = no spread.
+   * @default { x: 1, y: 1, z: 1 }
+   */
+  velocitySpread?: { x: number; y: number; z: number };
   /**
    * Initial angular velocity of the particle in **radians/s**.
    * Each particle in a batch will receive a random velocity between `-omega0` and `omega0`.

@@ -16,6 +16,7 @@ export function compileConfig(params: Params, originX: number, originY: number):
     origin: { x: originX, y: originY },
     v0: { ...p.v0 },
     velocityBias: { ...p.velocityBias },
+    velocitySpread: { ...p.velocitySpread },
     omega0: p.omega0,
     randomStartRotation: p.randomStartRotation,
     gravity: { ...p.gravity },
