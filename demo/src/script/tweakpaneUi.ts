@@ -129,6 +129,8 @@ export function createTweakpaneUi(
   addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, step: 50, label: 'spawn duration (ms)' });
   addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, step: 1, label: 'spawn size (px)' });
   addBinding(particleFolder, params.particle, 'scaleWithAge', { min: -5, max: 5, step: 0.1, label: 'shrink with age' });
+  addBinding(particleFolder, params.particle, 'swayStrength', { min: 0, step: 1, label: 'sway strength (px)' });
+  addBinding(particleFolder, params.particle, 'swayTimeScale', { step: 0.01, label: 'sway time scale' });
 
   const materialFolder = api.addFolder({ title: 'Material', expanded: true });
   const useDiffuseAsAmbientBinding = addBinding(materialFolder, params.particle, 'useDiffuseAsAmbient', {
@@ -203,21 +205,17 @@ export function createTweakpaneUi(
 
   const atlasFolder = api.addFolder({ title: 'Atlas', expanded: false });
   const atlasColumnsBinding = addBinding(atlasFolder, params.atlasLayout, 'columns', {
-    min: 1,
-    max: 32,
     step: 1,
     label: 'columns',
   }) as ChangeableBindingApi;
   atlasColumnsBinding.on('change', () => context.recreateEmitter?.());
   const atlasRowsBinding = addBinding(atlasFolder, params.atlasLayout, 'rows', {
-    min: 1,
-    max: 32,
     step: 1,
     label: 'rows',
   }) as ChangeableBindingApi;
   atlasRowsBinding.on('change', () => context.recreateEmitter?.());
-  addBinding(atlasFolder, params.atlas, 'column', { min: 0, max: 16, step: 1, label: 'offset column' });
-  addBinding(atlasFolder, params.atlas, 'row', { min: 0, max: 16, step: 1, label: 'offset row' });
+  addBinding(atlasFolder, params.atlas, 'column', { step: 1, label: 'offset column' });
+  addBinding(atlasFolder, params.atlas, 'row', { step: 1, label: 'offset row' });
   addBinding(atlasFolder, params.atlas, 'sweepBy', {
     options: { row: 'row', column: 'column' },
     label: 'sweep by',

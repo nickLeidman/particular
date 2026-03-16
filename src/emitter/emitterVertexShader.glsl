@@ -16,16 +16,22 @@ layout(std140) uniform Camera {
 };
 
 layout(std140) uniform Emitter {
+    mat4 world;
+
     float batchAge;
     float batchHash;
     float lifetime;
+    // padding byte
 
     vec3 gravity;
+    // padding byte
 
     vec3 v0;
+    // padding byte
 
     vec3 velocityBias;
     float size;
+
     float drag;
     float angularDrag;
     float spawnDuration;
@@ -37,21 +43,31 @@ layout(std140) uniform Emitter {
 
     vec2 atlasOffset;
     float randomStartRotation;
-    float _padAtlas;
+    // padding byte
 
     vec3 atlasSweepOptions;
+    // padding byte
 
     vec3 particleScaleVec;  // per-axis scale (name avoids conflict with scale() built-in)
+    // padding byte
 
     vec3 Ka;
+    // padding byte
+
     vec3 Kd;
+    // padding byte
+
     vec3 Ks;
     float Ns;
 
-    mat4 world;
+    float swayStrength;
+    float swayTimeScale;
+    // padding byte
+    // padding byte
 };
 
 uniform sampler2D uNoiseTexture;
+uniform sampler2D uSimplexTexture;
 uniform float uBillboard;
 uniform float uPixelRatio;
 
@@ -145,12 +161,35 @@ void main() {
         (sampleNoiseNormalized(instanceIndex, batchHash + 50.0) + velocityBias.z) * v0.z
     );
 
-    // bias spawn based on x y velocity
-    vec3 spawnBias = normalize(velocity);
+    // bias spawn based on velocity direction (avoid normalize(zero) => NaN)
+    float velLen = length(velocity);
+    vec3 spawnBias = velLen > 1e-9 ? normalize(velocity) : vec3(0.0);
     vec3 spawnDisplacement = spawnBias * spawnSize;
 
+    vec3 baseDisplacement = displaceInFluid(velocity, gravity, age, drag);
+    vec3 sway = vec3(0.0);
+    if (swayStrength > 0.0) {
+        vec3 currentVel = velocityInFluid(velocity, gravity, age, drag);
+        float vLen = length(currentVel);
+        if (vLen > 1e-6) {
+            vec3 Z = currentVel / vLen;
+            vec3 worldUp = vec3(0.0, 1.0, 0.0);  // Y is up in world space
+            vec3 X = cross(worldUp, Z);
+            float xLen = length(X);
+            if (xLen < 1e-5) X = normalize(cross(vec3(1.0, 0.0, 0.0), Z));  // Z parallel to Y
+            else X /= xLen;
+            vec3 Y = cross(Z, X);
+            float u = mod(age * swayTimeScale, 2.0) * 0.5;  // [0,1) for period 2
+            float v = mod(instanceIndex, 256.0) / 256.0;
+            float nX = texture(uSimplexTexture, vec2(u, v)).r * 2.0 - 1.0;
+            float nY = texture(uSimplexTexture, vec2(u + 0.5, v)).r * 2.0 - 1.0;
+            sway = swayStrength * (nX * X + nY * Y);
+        }
+    }
+    vec3 totalDisplacement = baseDisplacement + sway;
+
     // Rotation then scale: scale is applied in particle local space (correct for non-uniform scale)
-    mat4 model = translate(translate(world, displaceInFluid(velocity, gravity, age, drag)), spawnDisplacement) * rotationMatrix * scaleMatrix;
+    mat4 model = translate(translate(world, totalDisplacement), spawnDisplacement) * rotationMatrix * scaleMatrix;
 
     // Scale from logical (CSS) pixels to physical pixels in one place; physics unchanged
     mat4 modelScaled = scale(mat4(1.0), vec3(uPixelRatio, uPixelRatio, uPixelRatio)) * model;

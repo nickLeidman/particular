@@ -43,6 +43,8 @@ const defaultParams = {
     spawnDuration: 200,
     spawnSize: 60,
     scaleWithAge: 1,
+    swayStrength: 0,
+    swayTimeScale: 0.04,
     useDiffuseAsAmbient: true,
     Ka: { r: 0.75, g: 0.68, b: 0.098 },
     Kd: { r: 0.75, g: 0.68, b: 0.098 },

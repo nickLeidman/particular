@@ -32,6 +32,8 @@ export function compileConfig(params: Params, originX: number, originY: number):
     },
     spawnSize: p.spawnSize,
     scaleWithAge: p.scaleWithAge,
+    swayStrength: p.swayStrength,
+    swayTimeScale: p.swayTimeScale,
     Ka: p.useDiffuseAsAmbient ? { r: p.Kd.r, g: p.Kd.g, b: p.Kd.b } : { r: p.Ka.r, g: p.Ka.g, b: p.Ka.b },
     Kd: { r: p.Kd.r, g: p.Kd.g, b: p.Kd.b },
     Ks: { r: p.Ks.r, g: p.Ks.g, b: p.Ks.b },

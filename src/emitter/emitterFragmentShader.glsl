@@ -19,32 +19,52 @@ layout(std140) uniform Lighting {
 
 // Layout must match Emitter block in emitterVertexShader.glsl (std140).
 layout(std140) uniform Emitter {
+    mat4 world;
+
     float batchAge;
     float batchHash;
     float lifetime;
+    // padding byte
+
     vec3 gravity;
+    // padding byte
+
     vec3 v0;
+    // padding byte
+
     vec3 velocityBias;
     float size;
+
     float drag;
     float angularDrag;
     float spawnDuration;
     float spawnSize;
+
     float scaleWithAge;
     float omega0;
     vec2 atlasSize;
+
     vec2 atlasOffset;
     float randomStartRotation;
-    float _padAtlas;
+    // padding byte
+
     vec3 atlasSweepOptions;
+    // padding byte
+
     vec3 particleScaleVec;
+    // padding byte
 
     vec3 Ka;
+    // padding byte
+
     vec3 Kd;
+    // padding byte
+
     vec3 Ks;
     float Ns;
 
-    mat4 world;
+    float swayStrength;
+    float swayTimeScale;
 };
 
 uniform sampler2D uParticleTexture;

@@ -124,10 +124,10 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   applyTextureChoice();
 
   const simplexNoise = new SimplexNoise(engine, {
-    width: 1024,
-    height: 1024,
-    scale: 0.05,
-    period: 1,
+    width: 256,
+    height: 256,
+    scale: 0.04,
+    period: 2,
   });
   simplexNoise.render();
   const noiseOverlayCallback = () => simplexNoise.draw();

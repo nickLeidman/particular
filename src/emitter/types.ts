@@ -103,6 +103,17 @@ export interface ParticleBatchOptions {
   Ks?: { r: number; g: number; b: number };
   /** Specular exponent (shininess). @default 64 */
   Ns?: number;
+  /**
+   * Sway: displacement in the plane perpendicular to velocity, from simplex noise.
+   * Amplitude in pixels. 0 = no sway.
+   * @default 0
+   */
+  swayStrength?: number;
+  /**
+   * Sway: time scale for sampling simplex (age * swayTimeScale). Use ~0.04 with period 2 for smooth tileable noise.
+   * @default 0.04
+   */
+  swayTimeScale?: number;
 }
 
 export interface ParticleBatchProcessed extends ParticleBatchOptions {
@@ -121,4 +132,6 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
   Kd: { r: number; g: number; b: number };
   Ks: { r: number; g: number; b: number };
   Ns: number;
+  swayStrength: number;
+  swayTimeScale: number;
 }

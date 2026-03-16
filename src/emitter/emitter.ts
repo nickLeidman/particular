@@ -4,6 +4,7 @@ import { Entity } from '../entities/entity/entity';
 import { ObjectLoader } from '../loaders';
 import { M4 } from '../m4';
 import { Noise } from '../noise/noise';
+import { SimplexNoise } from '../noise/simplex/simplexNoise';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import plane from './plane.obj?raw';
@@ -12,6 +13,7 @@ import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } fro
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
   private readonly noise: WebGLTexture;
+  private readonly simplexNoise: WebGLTexture;
   /** 1x1 white texture used when no particle texture is set (keeps sampler valid). */
   private readonly whiteTexture: WebGLTexture;
   private particleTexture?: WebGLTexture;
@@ -22,6 +24,7 @@ export class Emitter extends Entity {
   }[];
 
   private readonly uNoiseTexture: WebGLUniformLocation | null;
+  private readonly uSimplexTexture: WebGLUniformLocation | null;
   private readonly uParticleTexture: WebGLUniformLocation | null;
   private readonly uBillboard: WebGLUniformLocation | null;
   private readonly uUseLighting: WebGLUniformLocation | null;
@@ -42,6 +45,9 @@ export class Emitter extends Entity {
     const noise = new Noise(engine, 256);
     this.noise = noise.render();
 
+    const simplex = new SimplexNoise(engine, { width: 256, height: 256, scale: 0.04, period: 2 });
+    this.simplexNoise = simplex.render();
+
     const whiteTex = gl.createTexture();
     if (!whiteTex) throw new Error('Failed to create whiteTexture');
     this.whiteTexture = whiteTex;
@@ -57,11 +63,12 @@ export class Emitter extends Entity {
     this.particleBuffer = particleBuffer;
     gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), Engine.BindingPoints.Emitter);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Emitter, this.particleBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, 64 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, 68 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
 
     this.uNoiseTexture = gl.getUniformLocation(this.program, 'uNoiseTexture');
+    this.uSimplexTexture = gl.getUniformLocation(this.program, 'uSimplexTexture');
     this.uParticleTexture = gl.getUniformLocation(this.program, 'uParticleTexture');
     this.uBillboard = gl.getUniformLocation(this.program, 'uBillboard');
     this.uUseLighting = gl.getUniformLocation(this.program, 'uUseLighting');
@@ -94,12 +101,14 @@ export class Emitter extends Entity {
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
       scaleWithAge: options.scaleWithAge ?? 0,
       randomStartRotation: options.randomStartRotation ?? false,
-      drag: (options.Cd * options.density * options.area) / (2 * options.mass),
-      angularDrag: (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
+      drag: options.Cd === 0 ? 0 : (options.Cd * options.density * options.area) / (2 * options.mass),
+      angularDrag: options.Cr === 0 ? 0 : (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
       Ka: options.Ka ?? { r: 1, g: 1, b: 1 },
       Kd: options.Kd ?? { r: 1, g: 1, b: 1 },
       Ks: options.Ks ?? { r: 1, g: 1, b: 1 },
       Ns: options.Ns ?? 64,
+      swayStrength: options.swayStrength ?? 200,
+      swayTimeScale: options.swayTimeScale ?? 0.06,
     };
   }
 
@@ -111,6 +120,7 @@ export class Emitter extends Entity {
 
     // particle buffer data, structured using std140 layout
     const particleBufferData = new Float32Array([
+      ...world.toData(),
       /* Time Block */
       0, // age in seconds, filled in draw method
       id, // batch hash, mod 256^2
@@ -135,12 +145,12 @@ export class Emitter extends Entity {
       particleBatch.velocityBias.z,
       particleBatch.size, // size in pixels
 
+      // 4 floats
       particleBatch.drag,
       particleBatch.angularDrag,
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
       particleBatch.spawnSize,
 
-      // 4 floats
       particleBatch.scaleWithAge,
       particleBatch.omega0,
       this.atlasLayout.columns,
@@ -180,7 +190,10 @@ export class Emitter extends Entity {
       particleBatch.Ks.b,
       particleBatch.Ns,
 
-      ...world.toData(),
+      particleBatch.swayStrength,
+      particleBatch.swayTimeScale,
+      0,
+      0,
     ]);
 
     const batch = { particleBatch, id, data: particleBufferData, startTime };
@@ -231,10 +244,15 @@ export class Emitter extends Entity {
     gl.bindTexture(gl.TEXTURE_2D, this.noise);
     gl.uniform1i(this.uNoiseTexture, 0);
 
-    // bind particle texture (1x1 white when none, so sampler is valid)
+    // bind simplex noise for sway (continuous tileable noise)
     gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.simplexNoise);
+    if (this.uSimplexTexture !== null) gl.uniform1i(this.uSimplexTexture, 1);
+
+    // bind particle texture (1x1 white when none, so sampler is valid)
+    gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, this.particleTexture ?? this.whiteTexture);
-    gl.uniform1i(this.uParticleTexture, 1);
+    gl.uniform1i(this.uParticleTexture, 2);
 
     gl.uniform1f(this.uBillboard, this.options.orientation === 'billboard' ? 1.0 : 0.0);
     gl.uniform1f(this.uUseLighting, this.options.useLighting !== false ? 1.0 : 0.0);
@@ -265,7 +283,7 @@ export class Emitter extends Entity {
         continue;
       }
 
-      data[0] = age / 1000;
+      data[16] = age / 1000; // batchAge (world is 0–15)
 
       gl.uniform1f(this.uUseTexture, this.particleTexture ? 1.0 : 0.0);
 
