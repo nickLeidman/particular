@@ -1,9 +1,10 @@
+import type { BindingApi } from '@tweakpane/core';
+import { createTweakpaneUi, type TweakpaneUiContext } from '../tweakpane';
 import { compileConfig } from './compileConfig';
 import { clearCustomObject, getCustomObject, setCustomObject } from './customObjectStorage';
 import { clearCustomTexture, getCustomTexture, setCustomTexture } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
-import { type BindingApi, createTweakpaneUi, type TweakpaneUiContext } from './tweakpaneUi';
 
 /** When true, shows GPU frame time graph and hooks into engine draw (adds per-frame overhead). Set false for production. */
 const ENABLE_FRAME_TIME_GRAPH = false;
@@ -15,9 +16,9 @@ const { bindings, setKaDisabled, frameTimeCallbacks, setCustomTextureAvailable, 
   params,
   uiContext,
   {
-  compileConfig,
-  enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
-},
+    compileConfig,
+    enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
+  },
 );
 
 const container = document.getElementById('root') as HTMLDivElement;
@@ -50,12 +51,11 @@ uiContext.onLoadCustomTexture = (file: File) => {
 };
 uiContext.onClearCustomTexture = () => {
   if (params.texture === 'custom') params.texture = 'atlas';
-  clearCustomTexture()
-    .then(() => {
-      app.clearCustomTexture();
-      setCustomTextureAvailable(false);
-      app.applyTextureChoice();
-    });
+  clearCustomTexture().then(() => {
+    app.clearCustomTexture();
+    setCustomTextureAvailable(false);
+    app.applyTextureChoice();
+  });
 };
 uiContext.onLoadCustomObject = (file: File) => {
   setCustomObject(file)
