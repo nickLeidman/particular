@@ -45,9 +45,14 @@ export type TweakpaneUiResult = {
 type PaneLike = {
   addFolder: (opts: { title: string; expanded?: boolean }) => PaneLike;
   addBinding: (obj: object, key: string, opts?: object) => BindingApi;
-  addButton: (opts: { title: string }) => { on: (ev: string, fn: () => void) => void };
+  addButton: (opts: { title: string }) => {
+    on: (ev: string, fn: () => void) => void;
+  };
 };
-type ChangeableBindingApi = BindingApi & { on: (ev: string, fn: () => void) => void; dispose?: () => void };
+type ChangeableBindingApi = BindingApi & {
+  on: (ev: string, fn: () => void) => void;
+  dispose?: () => void;
+};
 
 export function createTweakpaneUi(
   params: Params,
@@ -57,9 +62,13 @@ export function createTweakpaneUi(
     enableFrameTimeGraph?: boolean;
   },
 ): TweakpaneUiResult {
+  const wrapper = document.createElement('div');
+  wrapper.classList.add('pane-wrapper');
+  document.body.appendChild(wrapper);
+
   const container = document.createElement('div');
   container.classList.add('pane-container');
-  document.body.appendChild(container);
+  wrapper.appendChild(container);
 
   const cameraPane = new Pane({ title: 'Camera' });
   container.appendChild(cameraPane.element);
@@ -87,7 +96,10 @@ export function createTweakpaneUi(
     return b;
   }
 
-  const orientationFolder = api.addFolder({ title: 'Orientation', expanded: true });
+  const orientationFolder = api.addFolder({
+    title: 'Orientation',
+    expanded: true,
+  });
 
   const cameraDistanceBinding = addBinding(cameraApi, params.camera, 'distance', {
     min: 100,
@@ -103,46 +115,85 @@ export function createTweakpaneUi(
   cameraTypeBinding.on('change', () => context.applyCamera?.());
 
   const particleFolder = api.addFolder({ title: 'Particle', expanded: true });
-  addBinding(particleFolder, params.particle, 'lifeTime', { min: 100, step: 100, label: 'lifetime (ms)' });
-  addBinding(particleFolder, params.particle, 'count', { min: 1, step: 1, label: 'count' });
-  addBinding(particleFolder, params.particle, 'size', { min: 1, max: 500, step: 1, label: 'size (px)' });
+  addBinding(particleFolder, params.particle, 'lifeTime', {
+    min: 100,
+    step: 100,
+    label: 'lifetime (ms)',
+  });
+  addBinding(particleFolder, params.particle, 'count', {
+    min: 1,
+    step: 1,
+    label: 'count',
+  });
+  addBinding(particleFolder, params.particle, 'size', {
+    min: 1,
+    max: 500,
+    step: 1,
+    label: 'size (px)',
+  });
   addBinding(particleFolder, params.particle, 'scale', {
     label: 'scale',
-    x: { min: 0.1, max: 3, step: 0.1 },
-    y: { min: 0.1, max: 3, step: 0.1 },
-    z: { min: 0.1, max: 3, step: 0.1 },
+    x: { min: 0.1, max: 10, step: 0.1 },
+    y: { min: 0.1, max: 10, step: 0.1 },
+    z: { min: 0.1, max: 10, step: 0.1 },
   });
   addBinding(particleFolder, params.particle, 'v0', {
     label: 'velocity (px/s)',
-    x: { min: 0, max: 10000, step: 100 },
-    y: { min: 0, max: 10000, step: 100 },
-    z: { min: 0, max: 10000, step: 100 },
+    x: { min: 0, step: 100 },
+    y: { min: 0, step: 100 },
+    z: { min: 0, step: 100 },
   });
   addBinding(particleFolder, params.particle, 'velocityBias', {
     label: 'velocity bias',
-    x: { min: -1, max: 1, step: 0.1 },
-    y: { min: -1, max: 1, step: 0.1 },
-    z: { min: -1, max: 1, step: 0.1 },
+    x: { min: -2, max: 2, step: 0.1 },
+    y: { min: -2, max: 2, step: 0.1 },
+    z: { min: -2, max: 2, step: 0.1 },
   });
   addBinding(particleFolder, params.particle, 'velocitySpread', {
     label: 'velocity spread',
-    x: { min: 0, max: 1, step: 0.05 },
-    y: { min: 0, max: 1, step: 0.05 },
-    z: { min: 0, max: 1, step: 0.05 },
+    x: { min: 0, max: 2, step: 0.05 },
+    y: { min: 0, max: 2, step: 0.05 },
+    z: { min: 0, max: 2, step: 0.05 },
   });
-  addBinding(particleFolder, params.particle, 'omega0', { min: 0, step: 0.5, label: 'angular velocity (rad/s)' });
-  addBinding(particleFolder, params.particle, 'randomStartRotation', { label: 'random start rotation' });
+  addBinding(particleFolder, params.particle, 'omega0', {
+    min: 0,
+    step: 0.5,
+    label: 'angular velocity (rad/s)',
+  });
+  addBinding(particleFolder, params.particle, 'randomStartRotation', {
+    label: 'random start rotation',
+  });
   addBinding(particleFolder, params.particle, 'gravity', {
     label: 'gravity',
-    x: { min: -5000, max: 5000, step: 100 },
-    y: { min: -5000, max: 5000, step: 100 },
-    z: { min: -5000, max: 5000, step: 100 },
+    x: { step: 100 },
+    y: { step: 100 },
+    z: { step: 100 },
   });
-  addBinding(particleFolder, params.particle, 'spawnDuration', { min: 0, step: 50, label: 'spawn duration (ms)' });
-  addBinding(particleFolder, params.particle, 'spawnSize', { min: 0, step: 1, label: 'spawn size (px)' });
-  addBinding(particleFolder, params.particle, 'scaleWithAge', { min: -5, max: 5, step: 0.1, label: 'shrink with age' });
-  addBinding(particleFolder, params.particle, 'swayStrength', { min: 0, step: 1, label: 'sway strength (px)' });
-  addBinding(particleFolder, params.particle, 'swayTimeScale', { step: 0.01, label: 'sway time scale' });
+  addBinding(particleFolder, params.particle, 'spawnDuration', {
+    min: 0,
+    step: 10,
+    label: 'spawn duration (ms)',
+  });
+  addBinding(particleFolder, params.particle, 'spawnSize', {
+    min: 0,
+    step: 1,
+    label: 'spawn size (px)',
+  });
+  addBinding(particleFolder, params.particle, 'scaleWithAge', {
+    min: -5,
+    max: 5,
+    step: 0.1,
+    label: 'shrink with age',
+  });
+  addBinding(particleFolder, params.particle, 'swayStrength', {
+    min: 0,
+    step: 1,
+    label: 'sway strength (px)',
+  });
+  addBinding(particleFolder, params.particle, 'swayTimeScale', {
+    step: 0.01,
+    label: 'sway time scale',
+  });
 
   const materialFolder = api.addFolder({ title: 'Material', expanded: true });
   const useDiffuseAsAmbientBinding = addBinding(materialFolder, params.particle, 'useDiffuseAsAmbient', {
@@ -157,19 +208,58 @@ export function createTweakpaneUi(
   };
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   useDiffuseAsAmbientBinding.on('change', () => setKaDisabled(params.particle.useDiffuseAsAmbient));
-  addBinding(materialFolder, params.particle, 'Kd', { color: { type: 'float' }, label: 'Diffuse (Kd)' });
-  addBinding(materialFolder, params.particle, 'Ks', { color: { type: 'float' }, label: 'Specular (Ks)' });
+  addBinding(materialFolder, params.particle, 'Kd', {
+    color: { type: 'float' },
+    label: 'Diffuse (Kd)',
+  });
+  addBinding(materialFolder, params.particle, 'Ks', {
+    color: { type: 'float' },
+    label: 'Specular (Ks)',
+  });
   const NsOptions: Record<string, number> = {};
   for (const n of Ns_POW2) NsOptions[String(n)] = n;
-  addBinding(materialFolder, params.particle, 'Ns', { options: NsOptions, label: 'Shininess (Ns)' });
+  addBinding(materialFolder, params.particle, 'Ns', {
+    options: NsOptions,
+    label: 'Shininess (Ns)',
+  });
 
   const physicsFolder = api.addFolder({ title: 'Physics', expanded: true });
-  addBinding(physicsFolder, params.physics, 'Cd', { min: 0, max: 5, step: 0.1, label: 'drag coeff' });
-  addBinding(physicsFolder, params.physics, 'Cr', { min: 0, max: 5, step: 0.1, label: 'angular drag' });
-  addBinding(physicsFolder, params.physics, 'ro', { min: 0, max: 2, step: 0.01, label: 'fluid density' });
-  addBinding(physicsFolder, params.physics, 'area', { min: 0, max: 2000, step: 50, label: 'area (px²)' });
-  addBinding(physicsFolder, params.physics, 'mass', { min: 1e-7, max: 0.01, step: 1e-6, label: 'mass (kg)' });
-  addBinding(physicsFolder, params.physics, 'momentOfInertia', { min: 1e-7, max: 0.01, step: 1e-6, label: 'moment of inertia' });
+  addBinding(physicsFolder, params.physics, 'Cd', {
+    min: 0,
+    max: 5,
+    step: 0.1,
+    label: 'drag coeff',
+  });
+  addBinding(physicsFolder, params.physics, 'Cr', {
+    min: 0,
+    max: 5,
+    step: 0.1,
+    label: 'angular drag',
+  });
+  addBinding(physicsFolder, params.physics, 'ro', {
+    min: 0,
+    max: 2,
+    step: 0.01,
+    label: 'fluid density',
+  });
+  addBinding(physicsFolder, params.physics, 'area', {
+    min: 0,
+    max: 2000,
+    step: 50,
+    label: 'area (px²)',
+  });
+  addBinding(physicsFolder, params.physics, 'mass', {
+    min: 1e-7,
+    max: 0.01,
+    step: 1e-6,
+    label: 'mass (kg)',
+  });
+  addBinding(physicsFolder, params.physics, 'momentOfInertia', {
+    min: 1e-7,
+    max: 0.01,
+    step: 1e-6,
+    label: 'moment of inertia',
+  });
 
   const renderingFolder = api.addFolder({ title: 'Rendering', expanded: true });
   const useAlphaBlendingBinding = addBinding(renderingFolder, params, 'useAlphaBlending', {
@@ -186,9 +276,15 @@ export function createTweakpaneUi(
       const i = bindings.indexOf(textureBinding);
       if (i >= 0) bindings.splice(i, 1);
     }
-    const options: Record<string, TextureChoice> = { None: 'none', 'Particle atlas': 'atlas' };
+    const options: Record<string, TextureChoice> = {
+      None: 'none',
+      'Particle atlas': 'atlas',
+    };
     if (customTextureAvailable) options['Custom'] = 'custom';
-    textureBinding = addBinding(renderingFolder, params, 'texture', { options, label: 'Texture' }) as ChangeableBindingApi;
+    textureBinding = addBinding(renderingFolder, params, 'texture', {
+      options,
+      label: 'Texture',
+    }) as ChangeableBindingApi;
     textureBinding.on('change', () => context.applyTextureChoice?.());
   }
   refreshTextureBinding();
@@ -257,14 +353,30 @@ export function createTweakpaneUi(
     label: 'rows',
   }) as ChangeableBindingApi;
   atlasRowsBinding.on('change', () => context.recreateEmitter?.());
-  addBinding(atlasFolder, params.atlas, 'column', { step: 1, label: 'offset column' });
-  addBinding(atlasFolder, params.atlas, 'row', { step: 1, label: 'offset row' });
+  addBinding(atlasFolder, params.atlas, 'column', {
+    step: 1,
+    label: 'offset column',
+  });
+  addBinding(atlasFolder, params.atlas, 'row', {
+    step: 1,
+    label: 'offset row',
+  });
   addBinding(atlasFolder, params.atlas, 'sweepBy', {
     options: { row: 'row', column: 'column' },
     label: 'sweep by',
   });
-  addBinding(atlasFolder, params.atlas, 'sweepStepTime', { min: 0, max: 200, step: 1, label: 'sweep step (ms)' });
-  addBinding(atlasFolder, params.atlas, 'sweepStepCount', { min: 1, max: 32, step: 1, label: 'sweep steps' });
+  addBinding(atlasFolder, params.atlas, 'sweepStepTime', {
+    min: 0,
+    max: 200,
+    step: 1,
+    label: 'sweep step (ms)',
+  });
+  addBinding(atlasFolder, params.atlas, 'sweepStepCount', {
+    min: 1,
+    max: 32,
+    step: 1,
+    label: 'sweep steps',
+  });
 
   const debugState = { noisePreview: false };
   const noisePreviewBinding = addBinding(debugApi, debugState, 'noisePreview', {
@@ -281,7 +393,9 @@ export function createTweakpaneUi(
     navigator.clipboard.writeText(JSON.stringify(config, null, 2));
   });
 
-  const useLightingBinding = addBinding(lightingApi, params, 'useLighting', { label: 'Enabled' }) as ChangeableBindingApi;
+  const useLightingBinding = addBinding(lightingApi, params, 'useLighting', {
+    label: 'Enabled',
+  }) as ChangeableBindingApi;
   useLightingBinding.on('change', () => context.setUseLighting?.());
   const lightColorBinding = addBinding(lightingApi, params, 'lightColor', {
     color: { type: 'float' },

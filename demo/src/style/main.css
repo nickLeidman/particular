@@ -50,18 +50,24 @@ html {
 }
 
 /* Floating Tweakpane */
-.pane-container {
+.pane-wrapper {
   position: fixed;
-  padding: 0 10px;
   top: 0;
   right: 0;
-  height: 100%;
   z-index: 1000;
-  pointer-events: none;
-  overflow: auto;
-  width: 300px;
+  inset: 0 0 0 0;
   display: flex;
   flex-direction: column;
+  align-items: end;
+  overflow-x: hidden;
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.pane-container {
+  padding: 0 10px;
+  width: 320px;
+  pointer-events: auto;
 }
 
 .pane-container::-webkit-scrollbar {

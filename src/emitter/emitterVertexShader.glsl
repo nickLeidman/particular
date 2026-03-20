@@ -92,12 +92,10 @@ const float NOISE_INITIAL_ANGLE = 15.0;
 const float NOISE_SPIN_AXIS = 16.0;
 
 float noise2d(vec2 co, sampler2D sampler){
-    // assuming the texture is 256x256, get the mod of the coordinates
-    co = mod(co, 256.0);
-    // normalize the coordinates
-    co /= 256.0;
-    return texture(sampler, co).x;
-    //    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+    // Sample exact texels to avoid linear filtering bias.
+    vec2 wrapped = mod(co, 256.0);
+    ivec2 texel = ivec2(int(floor(wrapped.x)), int(floor(wrapped.y)));
+    return texelFetch(sampler, texel, 0).x;
 }
 
 float sampleNoise(float index, float offset) {
