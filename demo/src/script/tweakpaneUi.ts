@@ -20,6 +20,10 @@ export type TweakpaneUiContext = {
   onLoadCustomTexture?: (file: File) => void;
   /** Called when user clicks "Clear custom texture". */
   onClearCustomTexture?: () => void;
+  /** Called when user selects an OBJ file via "Load OBJ". */
+  onLoadCustomObject?: (file: File) => void;
+  /** Called when user clicks "Clear custom OBJ". */
+  onClearCustomObject?: () => void;
   /** Toggle debug overlay (e.g. noise preview). */
   setNoisePreviewVisible?: (visible: boolean) => void;
 };
@@ -33,6 +37,8 @@ export type TweakpaneUiResult = {
   frameTimeCallbacks: FrameTimeGraphCallbacks | null;
   /** Call when a custom texture is saved or removed so the texture picker can show/hide "Custom". */
   setCustomTextureAvailable: (available: boolean) => void;
+  /** Call when a custom OBJ is saved or removed to refresh clear button state. */
+  setCustomObjectAvailable: (available: boolean) => void;
 };
 
 // Tweakpane 4 types don't expose FolderApi methods on Pane; they exist at runtime
@@ -187,6 +193,14 @@ export function createTweakpaneUi(
   }
   refreshTextureBinding();
 
+  let customObjectAvailable = false;
+  const customObjectState = { available: false };
+  const customObjectBinding = addBinding(renderingFolder, customObjectState, 'available', {
+    label: 'Custom OBJ loaded',
+    readonly: true,
+  }) as unknown as { refresh: () => void; disabled: boolean };
+  customObjectBinding.disabled = true;
+
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*';
@@ -203,10 +217,33 @@ export function createTweakpaneUi(
   renderingFolder.addButton({ title: 'Load texture' }).on('click', () => fileInput.click());
   renderingFolder.addButton({ title: 'Clear custom texture' }).on('click', () => context.onClearCustomTexture?.());
 
+  const objFileInput = document.createElement('input');
+  objFileInput.type = 'file';
+  objFileInput.accept = '.obj,text/plain';
+  objFileInput.style.display = 'none';
+  document.body.appendChild(objFileInput);
+  objFileInput.addEventListener('change', () => {
+    const file = objFileInput.files?.[0];
+    if (file) {
+      context.onLoadCustomObject?.(file);
+      objFileInput.value = '';
+    }
+  });
+
+  renderingFolder.addButton({ title: 'Load OBJ' }).on('click', () => objFileInput.click());
+  renderingFolder.addButton({ title: 'Clear custom OBJ' }).on('click', () => context.onClearCustomObject?.());
+
   function setCustomTextureAvailable(available: boolean): void {
     if (available === customTextureAvailable) return;
     customTextureAvailable = available;
     refreshTextureBinding();
+  }
+
+  function setCustomObjectAvailable(available: boolean): void {
+    if (available === customObjectAvailable) return;
+    customObjectAvailable = available;
+    customObjectState.available = available;
+    customObjectBinding.refresh();
   }
 
   const atlasFolder = api.addFolder({ title: 'Atlas', expanded: false });
@@ -264,5 +301,6 @@ export function createTweakpaneUi(
     setKaDisabled,
     frameTimeCallbacks,
     setCustomTextureAvailable,
+    setCustomObjectAvailable,
   };
 }

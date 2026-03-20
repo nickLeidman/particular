@@ -2,6 +2,7 @@ import {
   Emitter,
   type EmitterOrientation,
   Engine,
+  type Geometry,
   ObjectLoader,
   type ParticleBatchOptions,
   Scene,
@@ -11,7 +12,6 @@ import {
   Vec3,
   TextureLoader,
 } from '@nleidman/particular';
-import cube from '../Chair.obj?raw';
 import particleImage from '../img/particle_atlas.png';
 import type { FrameTimeGraphCallbacks } from './frameTimeGraph';
 import type { Params } from './persistParams';
@@ -31,6 +31,10 @@ export type DemoApp = {
   setCustomTextureFromBlob: (blob: Blob) => Promise<void>;
   /** Clear the stored custom texture and stop using it. */
   clearCustomTexture: () => void;
+  /** Load a custom OBJ from a blob and recreate emitter geometry. */
+  setCustomObjectFromBlob: (blob: Blob) => Promise<void>;
+  /** Clear uploaded custom OBJ and return to default plane geometry. */
+  clearCustomObject: () => void;
   /** Toggle debug overlay that draws the simplex noise texture full-screen. */
   setNoisePreviewVisible: (visible: boolean) => void;
 };
@@ -50,7 +54,6 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   });
 
   const loader = new ObjectLoader();
-  loader.parseOBJ(cube); // keep for possible future body use
 
   const camera = new Camera(engine, params.camera.type, params.camera.distance);
   const light = new Light({
@@ -65,6 +68,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
 
   let particleTexture: WebGLTexture | null = null;
   let customTexture: WebGLTexture | null = null;
+  let customObjectGeometries: Geometry[] | null = null;
 
   function createEmitter(orientation: EmitterOrientation): Emitter {
     return new Emitter(engine, {
@@ -72,6 +76,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
       atlasLayout: { columns: params.atlasLayout.columns, rows: params.atlasLayout.rows },
       useLighting: params.useLighting,
       useAlphaBlending: params.useAlphaBlending,
+      modelGeometries: customObjectGeometries ?? undefined,
     });
   }
 
@@ -105,7 +110,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
 
   function setCustomTextureFromBlob(blob: Blob): Promise<void> {
     const url = URL.createObjectURL(blob);
-    return textureLoader.load(url).then((texture: WebGLTexture) => {
+    return textureLoader.load(url, { generateMipmaps: true, anisotropy: 8 }).then((texture: WebGLTexture) => {
       URL.revokeObjectURL(url);
       if (customTexture) engine.gl.deleteTexture(customTexture);
       customTexture = texture;
@@ -119,6 +124,22 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
       customTexture = null;
     }
     applyTextureChoice();
+  }
+
+  function setCustomObjectFromBlob(blob: Blob): Promise<void> {
+    return blob.text().then((objText) => {
+      const parsed = loader.parseOBJ(objText);
+      if (parsed.geometries.length === 0) {
+        throw new Error('Uploaded OBJ has no geometry.');
+      }
+      customObjectGeometries = parsed.geometries;
+      recreateEmitter();
+    });
+  }
+
+  function clearCustomObject(): void {
+    customObjectGeometries = null;
+    recreateEmitter();
   }
 
   applyTextureChoice();
@@ -158,6 +179,8 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     applyCamera,
     setCustomTextureFromBlob,
     clearCustomTexture,
+    setCustomObjectFromBlob,
+    clearCustomObject,
     setNoisePreviewVisible,
   };
 }

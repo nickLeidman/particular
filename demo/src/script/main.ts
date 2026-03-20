@@ -1,4 +1,5 @@
 import { compileConfig } from './compileConfig';
+import { clearCustomObject, getCustomObject, setCustomObject } from './customObjectStorage';
 import { clearCustomTexture, getCustomTexture, setCustomTexture } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
@@ -10,10 +11,14 @@ const ENABLE_FRAME_TIME_GRAPH = false;
 const params = createPersistentParams();
 const uiContext: TweakpaneUiContext = {};
 
-const { bindings, setKaDisabled, frameTimeCallbacks, setCustomTextureAvailable } = createTweakpaneUi(params, uiContext, {
+const { bindings, setKaDisabled, frameTimeCallbacks, setCustomTextureAvailable, setCustomObjectAvailable } = createTweakpaneUi(
+  params,
+  uiContext,
+  {
   compileConfig,
   enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
-});
+},
+);
 
 const container = document.getElementById('root') as HTMLDivElement;
 const app = createDemoApp(container, params, frameTimeCallbacks);
@@ -52,11 +57,36 @@ uiContext.onClearCustomTexture = () => {
       app.applyTextureChoice();
     });
 };
+uiContext.onLoadCustomObject = (file: File) => {
+  setCustomObject(file)
+    .then(() => app.setCustomObjectFromBlob(file))
+    .then(() => setCustomObjectAvailable(true))
+    .catch((error) => {
+      console.error('Failed to load custom OBJ', error);
+    });
+};
+uiContext.onClearCustomObject = () => {
+  clearCustomObject().then(() => {
+    app.clearCustomObject();
+    setCustomObjectAvailable(false);
+  });
+};
 uiContext.setNoisePreviewVisible = app.setNoisePreviewVisible;
 
 getCustomTexture().then((blob) => {
   if (blob) {
     app.setCustomTextureFromBlob(blob).then(() => setCustomTextureAvailable(true));
+  }
+});
+getCustomObject().then((blob) => {
+  if (blob) {
+    app
+      .setCustomObjectFromBlob(blob)
+      .then(() => setCustomObjectAvailable(true))
+      .catch((error) => {
+        console.error('Failed to restore custom OBJ', error);
+        void clearCustomObject();
+      });
   }
 });
 

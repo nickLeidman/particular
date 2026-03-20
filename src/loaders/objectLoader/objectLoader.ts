@@ -1,4 +1,4 @@
-import type { Geometry, ObjectInfo } from './types';
+import type { Geometry } from './types';
 
 const OBJ_KEYWORD_REGEX = /(\w*)(?: )*(.*)/;
 
@@ -72,7 +72,11 @@ export class ObjectLoader {
         objNormals.push(parts.map(parseFloat));
       },
       vt(parts: string[]) {
-        objTexcoords.push(parts.map(parseFloat));
+        // OBJ may provide 2 or 3 components (u v [w]); WebGL attribute uses vec2.
+        // Flip V to match how textures are uploaded in WebGL (top-left image origin).
+        const u = parseFloat(parts[0] ?? '0');
+        const v = parseFloat(parts[1] ?? '0');
+        objTexcoords.push([u, 1 - v]);
       },
       f(parts: string[]) {
         setGeometry();
@@ -83,14 +87,14 @@ export class ObjectLoader {
           addVertex(parts[tri + 2]);
         }
       },
-      usemtl(parts: string[], unparsedArgs) {
+      usemtl(_parts: string[], unparsedArgs) {
         material = unparsedArgs;
         newGeometry();
       },
-      mtllib(parts, unparsedArgs) {
+      mtllib(_parts, unparsedArgs) {
         materialLibs.push(unparsedArgs);
       },
-      o(parts, unparsedArgs) {
+      o(_parts, unparsedArgs) {
         object = unparsedArgs;
         newGeometry();
       },
