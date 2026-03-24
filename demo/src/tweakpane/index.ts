@@ -1,5 +1,6 @@
 import type { ParticleBatchOptions } from '@nleidman/particular';
 import type { BindingApi } from '@tweakpane/core';
+import type { Pane } from 'tweakpane';
 import type { FrameTimeGraphCallbacks } from '../script/frameTimeGraph';
 import type { Params } from '../script/persistParams';
 import { createCameraPane } from './panes/camera';
@@ -42,6 +43,8 @@ export type TweakpaneUiContext = {
 
 export type TweakpaneUiResult = {
   bindings: BindingApi[];
+  /** Root panes (for pane-level listeners, e.g. undo `change` with `ev.last`). */
+  rootPanes: Pane[];
   setKaDisabled: (disabled: boolean) => void;
   frameTimeCallbacks: FrameTimeGraphCallbacks | null;
   /** Call when a custom texture is saved or removed so the texture picker can show/hide "Custom". */
@@ -120,8 +123,11 @@ export function createTweakpaneUi(
     bindings.push(binding);
   }
 
+  const rootPanes: Pane[] = [workspacePane, cameraPane, lightingPane, emitterPane, particlePane, debugPane];
+
   return {
     bindings,
+    rootPanes,
     setKaDisabled,
     frameTimeCallbacks,
     setCustomTextureAvailable,

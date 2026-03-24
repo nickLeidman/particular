@@ -1,0 +1,11 @@
+.copyright {
+  font-size: 12px;
+  color: #999;
+  pointer-events: auto;
+  a {
+    color: #999;
+  }
+  a:hover {
+    text-decoration: none;
+  }
+}

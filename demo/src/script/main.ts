@@ -1,9 +1,10 @@
-import type { BindingApi } from '@tweakpane/core';
+import type { BindingApi, TpChangeEvent } from '@tweakpane/core';
 import { createTweakpaneUi, type TweakpaneUiContext } from '../tweakpane';
 import { compileConfig } from './compileConfig';
 import { customObjectSlot } from './customObjectStorage';
 import { customTextureSlot } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
+import { ParamHistory } from './paramHistory';
 import {
   assignValidatedParamsIntoLiveParams,
   createPersistentParams,
@@ -22,6 +23,7 @@ const uiContext: TweakpaneUiContext = {};
 
 const {
   bindings,
+  rootPanes,
   setKaDisabled,
   frameTimeCallbacks,
   setCustomTextureAvailable,
@@ -31,6 +33,8 @@ const {
   compileConfig,
   enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
 });
+
+const paramHistory = new ParamHistory(params);
 
 const container = document.getElementById('root') as HTMLDivElement;
 
@@ -55,8 +59,10 @@ function refreshAfterBulkParamsChange(): void {
 }
 
 uiContext.onReset = () => {
+  paramHistory.beginBulkEdit({ saveUndoPoint: true });
   resetParamsToDefaults(params);
   refreshAfterBulkParamsChange();
+  paramHistory.endBulkEdit();
 };
 
 uiContext.onExportProjectParams = () => {
@@ -68,9 +74,11 @@ uiContext.onImportProjectParams = (file: File) => {
     .text()
     .then(
       (text) => {
+        paramHistory.beginBulkEdit({ saveUndoPoint: true });
         const validated = parseProjectParamsJson(text);
         assignValidatedParamsIntoLiveParams(params, validated);
         refreshAfterBulkParamsChange();
+        paramHistory.endBulkEdit();
       },
       () => {
         window.alert('Could not read the selected file.');
@@ -169,6 +177,13 @@ customObjectSlot.get().then((blob) => {
 
 app.engine.start();
 
+for (const pane of rootPanes) {
+  pane.on('change', (ev: TpChangeEvent) => {
+    if (!ev.last) return;
+    paramHistory.onUserCommit();
+  });
+}
+
 // Apply param changes to existing batches and redraw on any pane change (so updates are visible when paused)
 bindings.forEach((b) => {
   void (b as BindingApi & { on: (ev: string, fn: () => void) => void }).on('change', () => {
@@ -182,6 +197,25 @@ container.addEventListener('click', (event: MouseEvent) => {
 });
 
 window.addEventListener('keydown', (event: KeyboardEvent) => {
+  const target = event.target as HTMLElement | null;
+  const inTextField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+  if (!inTextField && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    if (event.shiftKey) {
+      if (paramHistory.redo()) {
+        event.preventDefault();
+        paramHistory.beginBulkEdit();
+        refreshAfterBulkParamsChange();
+        paramHistory.endBulkEdit();
+      }
+    } else if (paramHistory.undo()) {
+      event.preventDefault();
+      paramHistory.beginBulkEdit();
+      refreshAfterBulkParamsChange();
+      paramHistory.endBulkEdit();
+    }
+  }
+
   if (event.key === 'p' || event.key === ' ') {
     event.preventDefault();
     app.engine.togglePause();
