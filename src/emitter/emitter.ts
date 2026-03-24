@@ -108,8 +108,8 @@ export class Emitter extends Entity {
       Kd: options.Kd ?? { r: 1, g: 1, b: 1 },
       Ks: options.Ks ?? { r: 1, g: 1, b: 1 },
       Ns: options.Ns ?? 64,
-      swayStrength: options.swayStrength ?? 200,
-      swayTimeScale: options.swayTimeScale ?? 0.06,
+      swayStrength: options.swayStrength ?? 0,
+      swayTimeScale: options.swayTimeScale ?? 0.04,
     };
   }
 
