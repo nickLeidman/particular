@@ -2,6 +2,10 @@ import type { EmitterOrientation } from '@nleidman/particular';
 
 const STORAGE_KEY = 'particular-demo-params';
 
+/** Written to exported JSON for future migrations; stripped before normalize/merge. */
+export const PARTICULAR_DEMO_PROJECT_VERSION = 1 as const;
+export const PARTICULAR_DEMO_PROJECT_VERSION_KEY = 'particularDemoProjectVersion' as const;
+
 export type TextureChoice = 'none' | 'atlas' | 'custom';
 
 /** Specular exponent (Ns) limited to powers of two for cheaper pow() on GPU. */
@@ -305,20 +309,91 @@ function validateParams(loaded: Params): void {
   p.Ns = nearestPowerOfTwo(p.Ns);
 }
 
-function loadParamsFromStorage(): Params {
+/**
+ * Same path as reading localStorage: migrations, emitter shape fixes, merge into defaults, validate.
+ * Mutates `record` (migration steps). Strips {@link PARTICULAR_DEMO_PROJECT_VERSION_KEY} if present.
+ */
+export function paramsFromStoredRecord(record: Record<string, unknown>): Params {
+  delete record[PARTICULAR_DEMO_PROJECT_VERSION_KEY];
+  migrateLegacy(record);
+  normalizeEmitterStorageShape(record);
+  redistributeStoredParams(record);
   const loaded = getDefaultParams() as unknown as Record<string, unknown>;
+  deepMerge(loaded, record);
+  validateParams(loaded as Params);
+  return loaded as Params;
+}
+
+/** Parse project/params JSON text; throws with a short message if invalid. */
+export function parseProjectParamsJson(text: string): Params {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON: the file is not valid JSON.');
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Invalid project file: the root value must be a JSON object.');
+  }
+  return paramsFromStoredRecord(parsed as Record<string, unknown>);
+}
+
+/** Plain snapshot of params plus optional export metadata (for download). */
+export function buildProjectParamsExportObject(params: Params): Record<string, unknown> {
+  return {
+    [PARTICULAR_DEMO_PROJECT_VERSION_KEY]: PARTICULAR_DEMO_PROJECT_VERSION,
+    ...(JSON.parse(JSON.stringify(params)) as Record<string, unknown>),
+  };
+}
+
+/**
+ * Copy validated values into the live proxied `params` without replacing nested object references
+ * (Tweakpane bindings keep working).
+ */
+export function assignValidatedParamsIntoLiveParams(target: Params, validated: Params): void {
+  Object.assign(target.camera, validated.camera);
+  Object.assign(target.workspace.backgroundColor, validated.workspace.backgroundColor);
+  Object.assign(target.lighting.color, validated.lighting.color);
+  const te = target.emitter;
+  const ve = validated.emitter;
+  te.orientation = ve.orientation;
+  te.useLighting = ve.useLighting;
+  te.useAlphaBlending = ve.useAlphaBlending;
+  te.texture = ve.texture;
+  Object.assign(te.atlasLayout, ve.atlasLayout);
+  assignParticleBranchInto(target.particle, validated.particle);
+}
+
+function assignParticleBranchInto(target: Params['particle'], source: Params['particle']): void {
+  for (const key of Object.keys(source) as (keyof Params['particle'])[]) {
+    const sv = source[key];
+    const tv = target[key];
+    if (
+      sv !== null &&
+      typeof sv === 'object' &&
+      !Array.isArray(sv) &&
+      Object.getPrototypeOf(sv) === Object.prototype &&
+      tv !== null &&
+      typeof tv === 'object' &&
+      !Array.isArray(tv) &&
+      Object.getPrototypeOf(tv) === Object.prototype
+    ) {
+      Object.assign(tv as Record<string, unknown>, sv as Record<string, unknown>);
+    } else {
+      (target as Record<string, unknown>)[key as string] = sv;
+    }
+  }
+}
+
+function loadParamsFromStorage(): Params {
+  const fallback = getDefaultParams();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return loaded as Params;
+    if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    migrateLegacy(parsed);
-    normalizeEmitterStorageShape(parsed);
-    redistributeStoredParams(parsed);
-    deepMerge(loaded, parsed);
-    validateParams(loaded as Params);
-    return loaded as Params;
+    return paramsFromStoredRecord(parsed);
   } catch {
-    return loaded as Params;
+    return fallback;
   }
 }
 

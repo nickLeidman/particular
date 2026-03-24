@@ -4,7 +4,13 @@ import { compileConfig } from './compileConfig';
 import { customObjectSlot } from './customObjectStorage';
 import { customTextureSlot } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
-import { createPersistentParams, resetParamsToDefaults } from './persistParams';
+import {
+  assignValidatedParamsIntoLiveParams,
+  createPersistentParams,
+  parseProjectParamsJson,
+  resetParamsToDefaults,
+} from './persistParams';
+import { downloadProjectParamsJson } from './projectFile';
 import { workspaceBackgroundSlot } from './workspaceBackgroundStorage';
 import { applyWorkspaceBackgroundColor, clearWorkspaceBackgroundImage, setWorkspaceBackgroundImageFromBlob } from './workspaceDom';
 
@@ -36,14 +42,44 @@ applyWorkspace();
 
 const app = createDemoApp(container, params, frameTimeCallbacks);
 
-uiContext.onReset = () => {
-  resetParamsToDefaults(params);
+function refreshAfterBulkParamsChange(): void {
   for (const b of bindings) b.refresh();
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   app.scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b);
   app.applyCamera();
   applyWorkspace();
+  app.recreateEmitter();
+  app.applyTextureChoice();
+  app.updateBatches(compileConfig(params, 0, 0));
   app.engine.draw();
+}
+
+uiContext.onReset = () => {
+  resetParamsToDefaults(params);
+  refreshAfterBulkParamsChange();
+};
+
+uiContext.onExportProjectParams = () => {
+  downloadProjectParamsJson(params);
+};
+
+uiContext.onImportProjectParams = (file: File) => {
+  void file
+    .text()
+    .then(
+      (text) => {
+        const validated = parseProjectParamsJson(text);
+        assignValidatedParamsIntoLiveParams(params, validated);
+        refreshAfterBulkParamsChange();
+      },
+      () => {
+        window.alert('Could not read the selected file.');
+      },
+    )
+    .catch((e: unknown) => {
+      const message = e instanceof Error ? e.message : 'Invalid project file.';
+      window.alert(message);
+    });
 };
 uiContext.recreateEmitter = app.recreateEmitter;
 uiContext.setUseLighting = app.setUseLighting;

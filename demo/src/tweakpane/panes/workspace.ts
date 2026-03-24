@@ -45,6 +45,26 @@ export const createWorkspacePane = (params: Params, context: TweakpaneUiContext)
 
   workspacePane.addBlade({ view: 'separator' });
 
+  workspacePane.addButton({ title: 'Export settings as JSON' }).on('click', () => {
+    context.onExportProjectParams?.();
+  });
+
+  const paramsJsonInput = document.createElement('input');
+  paramsJsonInput.type = 'file';
+  paramsJsonInput.accept = 'application/json,.json';
+  paramsJsonInput.style.display = 'none';
+  document.body.appendChild(paramsJsonInput);
+  paramsJsonInput.addEventListener('change', () => {
+    const file = paramsJsonInput.files?.[0];
+    if (file) {
+      context.onImportProjectParams?.(file);
+      paramsJsonInput.value = '';
+    }
+  });
+  workspacePane.addButton({ title: 'Import settings from JSON' }).on('click', () => paramsJsonInput.click());
+
+  workspacePane.addBlade({ view: 'separator' });
+
   workspacePane.addButton({ title: 'Reset EVERYTHING to defaults' }).on('click', () => {
     context.onReset?.();
   });

@@ -34,6 +34,10 @@ export type TweakpaneUiContext = {
   applyWorkspace?: () => void;
   onLoadWorkspaceBackground?: (file: File) => void;
   onClearWorkspaceBackground?: () => void;
+  /** Download current demo params as JSON (params only; not IndexedDB assets). */
+  onExportProjectParams?: () => void;
+  /** Load params from a JSON file (same normalize/validate path as localStorage). */
+  onImportProjectParams?: (file: File) => void;
 };
 
 export type TweakpaneUiResult = {
