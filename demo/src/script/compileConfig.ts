@@ -6,8 +6,8 @@ import type { Params } from './persistParams';
  */
 export function compileConfig(params: Params, originX: number, originY: number): ParticleBatchOptions {
   const p = params.particle;
-  const ph = params.physics;
-  const a = params.atlas;
+  const ph = p.physics;
+  const a = p.atlas;
   return {
     lifeTime: p.lifeTime,
     count: p.count,

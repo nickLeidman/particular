@@ -1,7 +1,7 @@
 import type { ParticleBatchOptions } from '@nleidman/particular';
-import type { BindingApi, FolderApi } from '@tweakpane/core';
+import type { BindingApi } from '@tweakpane/core';
 import { Pane } from 'tweakpane';
-import type { Params, TextureChoice } from '../../script/persistParams';
+import type { Params } from '../../script/persistParams';
 import { Ns_POW2 } from '../../script/persistParams';
 import type { TweakpaneUiContext } from '..';
 
@@ -14,13 +14,11 @@ export type ParticlePaneResult = {
   pane: Pane;
   bindings: BindingApi[];
   setKaDisabled: (disabled: boolean) => void;
-  setCustomTextureAvailable: (available: boolean) => void;
-  setCustomObjectAvailable: (available: boolean) => void;
 };
 
 export const createParticlePane = (
   params: Params,
-  context: TweakpaneUiContext,
+  _context: TweakpaneUiContext,
   options: { compileConfig: (p: Params, x: number, y: number) => ParticleBatchOptions },
 ): ParticlePaneResult => {
   const particlePane = new Pane({ title: 'Particle' });
@@ -185,7 +183,7 @@ export const createParticlePane = (
     expanded: true,
   });
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'Cd', {
+    physicsFolder.addBinding(params.particle.physics, 'Cd', {
       min: 0,
       max: 5,
       step: 0.1,
@@ -193,7 +191,7 @@ export const createParticlePane = (
     }),
   );
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'Cr', {
+    physicsFolder.addBinding(params.particle.physics, 'Cr', {
       min: 0,
       max: 5,
       step: 0.1,
@@ -201,7 +199,7 @@ export const createParticlePane = (
     }),
   );
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'ro', {
+    physicsFolder.addBinding(params.particle.physics, 'ro', {
       min: 0,
       max: 2,
       step: 0.01,
@@ -209,7 +207,7 @@ export const createParticlePane = (
     }),
   );
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'area', {
+    physicsFolder.addBinding(params.particle.physics, 'area', {
       min: 0,
       max: 2000,
       step: 50,
@@ -217,7 +215,7 @@ export const createParticlePane = (
     }),
   );
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'mass', {
+    physicsFolder.addBinding(params.particle.physics, 'mass', {
       min: 1e-7,
       max: 0.01,
       step: 1e-6,
@@ -225,7 +223,7 @@ export const createParticlePane = (
     }),
   );
   bindings.push(
-    physicsFolder.addBinding(params.physics, 'momentOfInertia', {
+    physicsFolder.addBinding(params.particle.physics, 'momentOfInertia', {
       min: 1e-7,
       max: 0.01,
       step: 1e-6,
@@ -233,95 +231,46 @@ export const createParticlePane = (
     }),
   );
 
-  /* ================= RENDERING ================= */
+  /* ================= ATLAS (per-batch frame / sweep) ================= */
 
-  const renderingFolder = particlePane.addFolder({
-    title: 'Rendering',
-    expanded: true,
+  const atlasFolder = particlePane.addFolder({
+    title: 'Atlas',
+    expanded: false,
   });
-
-  let customTextureAvailable = false;
-  let textureBinding = renderingFolder.addBinding(params, 'texture', {
-    None: 'none',
-    'Particle atlas': 'atlas',
-  });
-
-  function refreshTextureBinding(): void {
-    textureBinding.dispose();
-    const i = bindings.indexOf(textureBinding);
-    if (i >= 0) bindings.splice(i, 1);
-    const options: Record<string, TextureChoice> = {
-      None: 'none',
-      'Particle atlas': 'atlas',
-    };
-    if (customTextureAvailable) options['Custom'] = 'custom';
-    textureBinding = renderingFolder.addBinding(params, 'texture', {
-      options,
-      label: 'Texture',
-      index: 0,
-    });
-    bindings.push(textureBinding);
-    textureBinding.on('change', () => context.applyTextureChoice?.());
-  }
-  refreshTextureBinding();
-
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/*';
-  fileInput.style.display = 'none';
-  document.body.appendChild(fileInput);
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (file) {
-      context.onLoadCustomTexture?.(file);
-      fileInput.value = '';
-    }
-  });
-
-  renderingFolder.addButton({ title: 'Load texture' }).on('click', () => fileInput.click());
-  renderingFolder.addButton({ title: 'Clear custom texture' }).on('click', () => context.onClearCustomTexture?.());
-
-  const objFileInput = document.createElement('input');
-  objFileInput.type = 'file';
-  objFileInput.accept = '.obj,text/plain';
-  objFileInput.style.display = 'none';
-  document.body.appendChild(objFileInput);
-  objFileInput.addEventListener('change', () => {
-    const file = objFileInput.files?.[0];
-    if (file) {
-      context.onLoadCustomObject?.(file);
-      objFileInput.value = '';
-    }
-  });
-
-  renderingFolder.addBlade({ view: 'separator' });
-
-  /* ================= CUSTOM OBJ ================= */
-
-  let customObjectAvailable = false;
-  const customObjectState = { available: false };
-  const customObjectBinding = renderingFolder.addBinding(customObjectState, 'available', {
-    label: 'Custom OBJ loaded',
-    readonly: true,
-  }) as unknown as { refresh: () => void; disabled: boolean };
-  bindings.push(customObjectBinding as unknown as BindingApi);
-  customObjectBinding.disabled = true;
-
-  renderingFolder.addButton({ title: 'Load OBJ' }).on('click', () => objFileInput.click());
-  renderingFolder.addButton({ title: 'Clear custom OBJ' }).on('click', () => context.onClearCustomObject?.());
-
-  function setCustomTextureAvailable(available: boolean): void {
-    if (available === customTextureAvailable) return;
-    customTextureAvailable = available;
-    refreshTextureBinding();
-  }
-
-  function setCustomObjectAvailable(available: boolean): void {
-    if (available === customObjectAvailable) return;
-    customObjectAvailable = available;
-    customObjectState.available = available;
-    customObjectBinding.refresh();
-  }
+  bindings.push(
+    atlasFolder.addBinding(params.particle.atlas, 'column', {
+      step: 1,
+      label: 'offset column',
+    }),
+  );
+  bindings.push(
+    atlasFolder.addBinding(params.particle.atlas, 'row', {
+      step: 1,
+      label: 'offset row',
+    }),
+  );
+  bindings.push(
+    atlasFolder.addBinding(params.particle.atlas, 'sweepBy', {
+      options: { row: 'row', column: 'column' },
+      label: 'sweep by',
+    }),
+  );
+  bindings.push(
+    atlasFolder.addBinding(params.particle.atlas, 'sweepStepTime', {
+      min: 0,
+      max: 200,
+      step: 1,
+      label: 'sweep step (ms)',
+    }),
+  );
+  bindings.push(
+    atlasFolder.addBinding(params.particle.atlas, 'sweepStepCount', {
+      min: 1,
+      max: 32,
+      step: 1,
+      label: 'sweep steps',
+    }),
+  );
 
   /* ================= COPY CONFIG ================= */
 
@@ -336,7 +285,5 @@ export const createParticlePane = (
     pane: particlePane,
     bindings,
     setKaDisabled,
-    setCustomTextureAvailable,
-    setCustomObjectAvailable,
   };
 };

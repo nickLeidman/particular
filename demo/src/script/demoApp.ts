@@ -1,16 +1,16 @@
 import {
+  Camera,
   Emitter,
   type EmitterOrientation,
   Engine,
   type Geometry,
+  Light,
   ObjectLoader,
   type ParticleBatchOptions,
   Scene,
-  Camera,
-  Light,
   SimplexNoise,
-  Vec3,
   TextureLoader,
+  Vec3,
 } from '@nleidman/particular';
 import particleImage from '../img/particle_atlas.png';
 import type { FrameTimeGraphCallbacks } from './frameTimeGraph';
@@ -58,7 +58,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   const camera = new Camera(engine, params.camera.type, params.camera.distance);
   const light = new Light({
     position: camera.viewPosition,
-    color: new Vec3(params.lightColor.r, params.lightColor.g, params.lightColor.b),
+    color: new Vec3(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b),
   });
   const scene = new Scene({
     camera,
@@ -73,20 +73,20 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   function createEmitter(orientation: EmitterOrientation): Emitter {
     return new Emitter(engine, {
       orientation,
-      atlasLayout: { columns: params.atlasLayout.columns, rows: params.atlasLayout.rows },
-      useLighting: params.useLighting,
-      useAlphaBlending: params.useAlphaBlending,
+      atlasLayout: { columns: params.emitter.atlasLayout.columns, rows: params.emitter.atlasLayout.rows },
+      useLighting: params.emitter.useLighting,
+      useAlphaBlending: params.emitter.useAlphaBlending,
       modelGeometries: customObjectGeometries ?? undefined,
     });
   }
 
-  let currentEmitter = createEmitter(params.orientation);
+  let currentEmitter = createEmitter(params.emitter.orientation);
   scene.add(currentEmitter);
 
   function applyTextureChoice() {
-    if (params.texture === 'atlas' && particleTexture) {
+    if (params.emitter.texture === 'atlas' && particleTexture) {
       currentEmitter.setTexture(particleTexture);
-    } else if (params.texture === 'custom' && customTexture) {
+    } else if (params.emitter.texture === 'custom' && customTexture) {
       currentEmitter.setTexture(customTexture);
     } else {
       currentEmitter.setTexture(null);
@@ -96,7 +96,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
   function recreateEmitter() {
     const batches = currentEmitter.takeBatches();
     scene.remove(currentEmitter);
-    currentEmitter = createEmitter(params.orientation);
+    currentEmitter = createEmitter(params.emitter.orientation);
     currentEmitter.receiveBatches(batches);
     scene.add(currentEmitter);
     applyTextureChoice();
@@ -173,9 +173,9 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     updateBatches: (config) => currentEmitter.updateBatches(config),
     recreateEmitter,
     applyTextureChoice,
-    setUseLighting: () => currentEmitter.setUseLighting(params.useLighting),
-    setLightColor: () => scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b),
-    setUseAlphaBlending: () => currentEmitter.setUseAlphaBlending(params.useAlphaBlending),
+    setUseLighting: () => currentEmitter.setUseLighting(params.emitter.useLighting),
+    setLightColor: () => scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b),
+    setUseAlphaBlending: () => currentEmitter.setUseAlphaBlending(params.emitter.useAlphaBlending),
     applyCamera,
     setCustomTextureFromBlob,
     clearCustomTexture,

@@ -40,7 +40,7 @@ uiContext.onReset = () => {
   resetParamsToDefaults(params);
   for (const b of bindings) b.refresh();
   setKaDisabled(params.particle.useDiffuseAsAmbient);
-  app.scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
+  app.scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b);
   app.applyCamera();
   applyWorkspace();
   app.engine.draw();
@@ -58,13 +58,13 @@ uiContext.onLoadCustomTexture = (file: File) => {
     .set(file)
     .then(() => app.setCustomTextureFromBlob(file))
     .then(() => {
-      params.texture = 'custom';
+      params.emitter.texture = 'custom';
       setCustomTextureAvailable(true);
       app.applyTextureChoice();
     });
 };
 uiContext.onClearCustomTexture = () => {
-  if (params.texture === 'custom') params.texture = 'atlas';
+  if (params.emitter.texture === 'custom') params.emitter.texture = 'atlas';
   customTextureSlot.clear().then(() => {
     app.clearCustomTexture();
     setCustomTextureAvailable(false);

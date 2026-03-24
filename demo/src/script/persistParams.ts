@@ -19,13 +19,23 @@ function nearestPowerOfTwo(n: number): NsValue {
   return 256;
 }
 
+/**
+ * Keys that belonged under `emitter` in older stored shapes.
+ * `particle`, `physics`, `atlas` are hoisted to `params.particle` (with physics/atlas nested) after load.
+ */
+const EMITTER_STORAGE_KEYS = [
+  'orientation',
+  'useLighting',
+  'lightColor',
+  'useAlphaBlending',
+  'texture',
+  'atlasLayout',
+  'particle',
+  'physics',
+  'atlas',
+] as const;
+
 const defaultParams = {
-  orientation: 'free' as EmitterOrientation,
-  useLighting: true,
-  lightColor: { r: 0.8, g: 0.8, b: 0.8 },
-  useAlphaBlending: false,
-  texture: 'none' as TextureChoice,
-  atlasLayout: { columns: 1, rows: 1 },
   camera: {
     distance: 10000,
     type: 'perspective' as 'orthographic' | 'perspective',
@@ -33,6 +43,17 @@ const defaultParams = {
   /** Page chrome behind the canvas (color in localStorage; optional image in IndexedDB). */
   workspace: {
     backgroundColor: { r: 65 / 255, g: 105 / 255, b: 225 / 255 },
+  },
+  /** Scene light color (separate from emitter `useLighting` toggle). */
+  lighting: {
+    color: { r: 0.8, g: 0.8, b: 0.8 },
+  },
+  emitter: {
+    orientation: 'free' as EmitterOrientation,
+    useLighting: true,
+    useAlphaBlending: false,
+    texture: 'none' as TextureChoice,
+    atlasLayout: { columns: 1, rows: 1 },
   },
   particle: {
     lifeTime: 800,
@@ -55,21 +76,21 @@ const defaultParams = {
     Kd: { r: 0.75, g: 0.68, b: 0.098 },
     Ks: { r: 1, g: 1, b: 1 },
     Ns: 8,
-  },
-  physics: {
-    Cd: 5,
-    Cr: 0.9,
-    ro: 1.4,
-    area: 500,
-    mass: 0.000109,
-    momentOfInertia: 0.000326,
-  },
-  atlas: {
-    column: 0,
-    row: 0,
-    sweepBy: 'row' as 'row' | 'column',
-    sweepStepTime: 1000 / 60,
-    sweepStepCount: 1,
+    physics: {
+      Cd: 5,
+      Cr: 0.9,
+      ro: 1.4,
+      area: 500,
+      mass: 0.000109,
+      momentOfInertia: 0.000326,
+    },
+    atlas: {
+      column: 0,
+      row: 0,
+      sweepBy: 'row' as 'row' | 'column',
+      sweepStepTime: 1000 / 60,
+      sweepStepCount: 1,
+    },
   },
 };
 
@@ -102,12 +123,81 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
   }
 }
 
+/** Flattened `emitter` for legacy localStorage (pre-`emitter` nesting). */
+function normalizeEmitterStorageShape(parsed: Record<string, unknown>): void {
+  const existing = parsed.emitter;
+  if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+    const em = existing as Record<string, unknown>;
+    for (const k of EMITTER_STORAGE_KEYS) {
+      if (k in parsed && !(k in em)) {
+        em[k] = parsed[k];
+      }
+      delete parsed[k];
+    }
+    return;
+  }
+  const emitter: Record<string, unknown> = {};
+  for (const k of EMITTER_STORAGE_KEYS) {
+    if (k in parsed) {
+      emitter[k] = parsed[k];
+      delete parsed[k];
+    }
+  }
+  if (Object.keys(emitter).length > 0) {
+    parsed.emitter = emitter;
+  }
+}
+
+/** Normalize typo, scene light location, and particle subtree after emitter flattening / legacy saves. */
+function redistributeStoredParams(parsed: Record<string, unknown>): void {
+  if (parsed.lighing && typeof parsed.lighing === 'object' && !parsed.lighting) {
+    parsed.lighting = parsed.lighing;
+  }
+  delete parsed.lighing;
+
+  const em = parsed.emitter as Record<string, unknown> | undefined;
+  if (!em || typeof em !== 'object' || Array.isArray(em)) return;
+
+  if (em.lightColor) {
+    if (!parsed.lighting || typeof parsed.lighting !== 'object') parsed.lighting = {};
+    const L = parsed.lighting as Record<string, unknown>;
+    if (!L.color) L.color = em.lightColor;
+    delete em.lightColor;
+  }
+
+  const ep = em.particle as Record<string, unknown> | undefined;
+  if (ep) {
+    const rootP = parsed.particle as Record<string, unknown> | undefined;
+    if (!parsed.particle) {
+      parsed.particle = ep;
+    } else if (rootP) {
+      deepMerge(rootP, ep);
+    }
+    delete em.particle;
+  }
+
+  const targetP = parsed.particle as Record<string, unknown> | undefined;
+  if (!targetP) return;
+
+  if (em.physics) {
+    if (!targetP.physics) targetP.physics = em.physics;
+    else deepMerge(targetP.physics as Record<string, unknown>, em.physics as Record<string, unknown>);
+    delete em.physics;
+  }
+  if (em.atlas) {
+    if (!targetP.atlas) targetP.atlas = em.atlas;
+    else deepMerge(targetP.atlas as Record<string, unknown>, em.atlas as Record<string, unknown>);
+    delete em.atlas;
+  }
+}
+
 /** One-time migration of old localStorage shapes into current shape. */
 function migrateLegacy(parsed: Record<string, unknown>): void {
   if ((parsed.mode === '2d' || parsed.mode === '3d') && parsed.orientation === undefined) {
     parsed.orientation = parsed.mode === '2d' ? 'billboard' : 'free';
   }
-  const p = parsed.particle as Record<string, unknown> | undefined;
+  const e = parsed.emitter as Record<string, unknown> | undefined;
+  const p = (e?.particle ?? parsed.particle) as Record<string, unknown> | undefined;
   if (p && ('gravityX' in p || 'gravityY' in p || 'gravityZ' in p) && !p.gravity) {
     p.gravity = {
       x: (p.gravityX as number) ?? 0,
@@ -122,9 +212,6 @@ function migrateLegacy(parsed: Record<string, unknown>): void {
 }
 
 function validateParams(loaded: Params): void {
-  if (loaded.orientation !== 'billboard' && loaded.orientation !== 'free') {
-    loaded.orientation = 'billboard';
-  }
   if (!loaded.camera || typeof loaded.camera.distance !== 'number') {
     loaded.camera = { distance: 10000, type: 'perspective' };
   } else {
@@ -147,45 +234,75 @@ function validateParams(loaded: Params): void {
     c.g = Math.max(0, Math.min(1, c.g));
     c.b = Math.max(0, Math.min(1, c.b));
   }
-  if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
-  if (
-    !loaded.lightColor ||
-    typeof loaded.lightColor.r !== 'number' ||
-    typeof loaded.lightColor.g !== 'number' ||
-    typeof loaded.lightColor.b !== 'number'
-  ) {
-    loaded.lightColor = { r: 0.8, g: 0.8, b: 0.8 };
+
+  const raw = loaded as unknown as Record<string, unknown>;
+  if (raw.lighing && typeof raw.lighing === 'object' && !loaded.lighting) {
+    loaded.lighting = raw.lighing as Params['lighting'];
   }
-  if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
-  if (loaded.texture !== 'none' && loaded.texture !== 'atlas' && loaded.texture !== 'custom') loaded.texture = 'atlas';
-  if (!loaded.atlasLayout || typeof loaded.atlasLayout.columns !== 'number' || typeof loaded.atlasLayout.rows !== 'number') {
-    loaded.atlasLayout = { columns: 1, rows: 1 };
+  delete raw.lighing;
+
+  const d = getDefaultParams();
+  if (!loaded.lighting || typeof loaded.lighting !== 'object') {
+    loaded.lighting = JSON.parse(JSON.stringify(d.lighting)) as Params['lighting'];
+  }
+  const lc = loaded.lighting.color;
+  if (!lc || typeof lc.r !== 'number' || typeof lc.g !== 'number' || typeof lc.b !== 'number') {
+    loaded.lighting.color = { r: 0.8, g: 0.8, b: 0.8 };
   } else {
-    loaded.atlasLayout.columns = Math.max(1, Math.min(32, Math.floor(loaded.atlasLayout.columns)));
-    loaded.atlasLayout.rows = Math.max(1, Math.min(32, Math.floor(loaded.atlasLayout.rows)));
+    lc.r = Math.max(0, Math.min(1, lc.r));
+    lc.g = Math.max(0, Math.min(1, lc.g));
+    lc.b = Math.max(0, Math.min(1, lc.b));
   }
-  if (loaded.atlas.sweepBy !== 'row' && loaded.atlas.sweepBy !== 'column') {
-    loaded.atlas.sweepBy = 'row';
+
+  if (!loaded.emitter || typeof loaded.emitter !== 'object') {
+    loaded.emitter = JSON.parse(JSON.stringify(d.emitter)) as Params['emitter'];
   }
-  loaded.atlas.column = Math.max(0, Math.min(loaded.atlasLayout.columns - 1, Math.floor(loaded.atlas.column)));
-  loaded.atlas.row = Math.max(0, Math.min(loaded.atlasLayout.rows - 1, Math.floor(loaded.atlas.row)));
-  if (typeof loaded.particle.useDiffuseAsAmbient !== 'boolean') {
-    loaded.particle.useDiffuseAsAmbient = true;
+  const e = loaded.emitter;
+  if (e.orientation !== 'billboard' && e.orientation !== 'free') {
+    e.orientation = 'billboard';
   }
-  if (typeof loaded.particle.randomStartRotation !== 'boolean') {
-    loaded.particle.randomStartRotation = false;
+  if (typeof e.useLighting !== 'boolean') e.useLighting = true;
+  if (typeof e.useAlphaBlending !== 'boolean') e.useAlphaBlending = true;
+  if (e.texture !== 'none' && e.texture !== 'atlas' && e.texture !== 'custom') e.texture = 'atlas';
+  if (!e.atlasLayout || typeof e.atlasLayout.columns !== 'number' || typeof e.atlasLayout.rows !== 'number') {
+    e.atlasLayout = { columns: 1, rows: 1 };
+  } else {
+    e.atlasLayout.columns = Math.max(1, Math.min(32, Math.floor(e.atlasLayout.columns)));
+    e.atlasLayout.rows = Math.max(1, Math.min(32, Math.floor(e.atlasLayout.rows)));
   }
-  const vs = loaded.particle.velocitySpread;
+
+  if (!loaded.particle || typeof loaded.particle !== 'object') {
+    loaded.particle = JSON.parse(JSON.stringify(d.particle)) as Params['particle'];
+  }
+  const p = loaded.particle;
+  if (!p.physics || typeof p.physics !== 'object') {
+    p.physics = JSON.parse(JSON.stringify(d.particle.physics)) as Params['particle']['physics'];
+  }
+  if (!p.atlas || typeof p.atlas !== 'object') {
+    p.atlas = JSON.parse(JSON.stringify(d.particle.atlas)) as Params['particle']['atlas'];
+  }
+  if (p.atlas.sweepBy !== 'row' && p.atlas.sweepBy !== 'column') {
+    p.atlas.sweepBy = 'row';
+  }
+  p.atlas.column = Math.max(0, Math.min(e.atlasLayout.columns - 1, Math.floor(p.atlas.column)));
+  p.atlas.row = Math.max(0, Math.min(e.atlasLayout.rows - 1, Math.floor(p.atlas.row)));
+  if (typeof p.useDiffuseAsAmbient !== 'boolean') {
+    p.useDiffuseAsAmbient = true;
+  }
+  if (typeof p.randomStartRotation !== 'boolean') {
+    p.randomStartRotation = false;
+  }
+  const vs = p.velocitySpread;
   if (!vs || typeof vs !== 'object' || typeof vs.x !== 'number' || typeof vs.y !== 'number' || typeof vs.z !== 'number') {
-    loaded.particle.velocitySpread = { x: 1, y: 1, z: 1 };
+    p.velocitySpread = { x: 1, y: 1, z: 1 };
   } else {
-    loaded.particle.velocitySpread = {
+    p.velocitySpread = {
       x: Math.max(0, Math.min(1, vs.x)),
       y: Math.max(0, Math.min(1, vs.y)),
       z: Math.max(0, Math.min(1, vs.z)),
     };
   }
-  loaded.particle.Ns = nearestPowerOfTwo(loaded.particle.Ns);
+  p.Ns = nearestPowerOfTwo(p.Ns);
 }
 
 function loadParamsFromStorage(): Params {
@@ -195,6 +312,8 @@ function loadParamsFromStorage(): Params {
     if (!raw) return loaded as Params;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     migrateLegacy(parsed);
+    normalizeEmitterStorageShape(parsed);
+    redistributeStoredParams(parsed);
     deepMerge(loaded, parsed);
     validateParams(loaded as Params);
     return loaded as Params;
@@ -205,20 +324,17 @@ function loadParamsFromStorage(): Params {
 
 export function resetParamsToDefaults(params: Params): void {
   const d = getDefaultParams();
-  params.orientation = d.orientation;
-  params.useLighting = d.useLighting;
-  params.lightColor = { ...d.lightColor };
-  params.useAlphaBlending = d.useAlphaBlending;
-  params.texture = d.texture;
-  params.atlasLayout = { ...d.atlasLayout };
   params.camera = { ...d.camera };
   params.workspace = { backgroundColor: { ...d.workspace.backgroundColor } };
-  Object.assign(params.particle, d.particle);
-  Object.assign(params.physics, d.physics);
-  Object.assign(params.atlas, d.atlas);
-  if (params.atlas.sweepBy !== 'row' && params.atlas.sweepBy !== 'column') {
-    params.atlas.sweepBy = 'row';
-  }
+  params.lighting = { color: { ...d.lighting.color } };
+  const pe = params.emitter;
+  const de = d.emitter;
+  pe.orientation = de.orientation;
+  pe.useLighting = de.useLighting;
+  pe.useAlphaBlending = de.useAlphaBlending;
+  pe.texture = de.texture;
+  pe.atlasLayout = { ...de.atlasLayout };
+  Object.assign(params.particle, JSON.parse(JSON.stringify(d.particle)) as Params['particle']);
 }
 
 export function createPersistentParams(): Params {

@@ -6,12 +6,12 @@ import type { TweakpaneUiContext } from '..';
 export const createLightingPane = (params: Params, context: TweakpaneUiContext): { pane: Pane; bindings: BindingApi[] } => {
   const lightingPane = new Pane({ title: 'Lighting' });
 
-  const useLightingBinding = lightingPane.addBinding(params, 'useLighting', {
+  const useLightingBinding = lightingPane.addBinding(params.emitter, 'useLighting', {
     label: 'Use lighting',
   });
   useLightingBinding.on('change', () => context.setUseLighting?.());
 
-  const lightColorBinding = lightingPane.addBinding(params, 'lightColor', {
+  const lightColorBinding = lightingPane.addBinding(params.lighting, 'color', {
     color: { type: 'float' },
     label: 'Color',
   });

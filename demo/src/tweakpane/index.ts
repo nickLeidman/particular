@@ -83,7 +83,12 @@ export function createTweakpaneUi(
     bindings.push(binding);
   }
 
-  const { pane: emitterPane, bindings: emitterBindings } = createEmitterPane(params, context);
+  const {
+    pane: emitterPane,
+    bindings: emitterBindings,
+    setCustomTextureAvailable,
+    setCustomObjectAvailable,
+  } = createEmitterPane(params, context);
   container.appendChild(emitterPane.element);
   for (const binding of emitterBindings) {
     bindings.push(binding);
@@ -93,8 +98,6 @@ export function createTweakpaneUi(
     pane: particlePane,
     bindings: particleBindings,
     setKaDisabled,
-    setCustomTextureAvailable,
-    setCustomObjectAvailable,
   } = createParticlePane(params, context, { compileConfig: options.compileConfig });
   container.appendChild(particlePane.element);
   for (const binding of particleBindings) {
