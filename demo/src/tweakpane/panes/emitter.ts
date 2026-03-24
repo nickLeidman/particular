@@ -71,10 +71,6 @@ export const createEmitterPane = (params: Params, context: TweakpaneUiContext): 
     }),
   );
 
-  emitterPane.addButton({ title: 'Reset to defaults' }).on('click', () => {
-    context.onReset?.();
-  });
-
   return {
     pane: emitterPane,
     bindings,

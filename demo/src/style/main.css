@@ -12,7 +12,6 @@ html {
   position: absolute;
   inset: 0;
   user-select: none;
-  background-color: royalblue;
   background-size: cover;
   background-position: center;
 }

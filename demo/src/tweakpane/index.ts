@@ -7,6 +7,7 @@ import { createDebugPane } from './panes/debug';
 import { createEmitterPane } from './panes/emitter';
 import { createLightingPane } from './panes/lighting';
 import { createParticlePane } from './panes/particle';
+import { createWorkspacePane } from './panes/workspace';
 
 /** Callbacks wired by the app after engine/scene/emitter exist. Reset is called when user clicks Reset to defaults. */
 export type TweakpaneUiContext = {
@@ -29,6 +30,10 @@ export type TweakpaneUiContext = {
   onClearCustomObject?: () => void;
   /** Toggle debug overlay (e.g. noise preview). */
   setNoisePreviewVisible?: (visible: boolean) => void;
+  /** Apply workspace background color (and keep image if any). */
+  applyWorkspace?: () => void;
+  onLoadWorkspaceBackground?: (file: File) => void;
+  onClearWorkspaceBackground?: () => void;
 };
 
 export type TweakpaneUiResult = {
@@ -39,6 +44,7 @@ export type TweakpaneUiResult = {
   setCustomTextureAvailable: (available: boolean) => void;
   /** Call when a custom OBJ is saved or removed to refresh clear button state. */
   setCustomObjectAvailable: (available: boolean) => void;
+  setWorkspaceBackgroundAvailable: (available: boolean) => void;
 };
 
 export function createTweakpaneUi(
@@ -58,6 +64,12 @@ export function createTweakpaneUi(
   const container = document.createElement('div');
   container.classList.add('pane-container');
   wrapper.appendChild(container);
+
+  const { pane: workspacePane, bindings: workspaceBindings, setWorkspaceBackgroundAvailable } = createWorkspacePane(params, context);
+  container.appendChild(workspacePane.element);
+  for (const binding of workspaceBindings) {
+    bindings.push(binding);
+  }
 
   const { pane: cameraPane, bindings: cameraBindings } = createCameraPane(params, context);
   container.appendChild(cameraPane.element);
@@ -89,7 +101,11 @@ export function createTweakpaneUi(
     bindings.push(binding);
   }
 
-  const { pane: debugPane, bindings: debugBindings, frameTimeCallbacks } = createDebugPane(context, {
+  const {
+    pane: debugPane,
+    bindings: debugBindings,
+    frameTimeCallbacks,
+  } = createDebugPane(context, {
     enableFrameTimeGraph: options.enableFrameTimeGraph,
   });
   container.appendChild(debugPane.element);
@@ -103,5 +119,6 @@ export function createTweakpaneUi(
     frameTimeCallbacks,
     setCustomTextureAvailable,
     setCustomObjectAvailable,
+    setWorkspaceBackgroundAvailable,
   };
 }

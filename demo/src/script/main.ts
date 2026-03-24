@@ -1,10 +1,12 @@
 import type { BindingApi } from '@tweakpane/core';
 import { createTweakpaneUi, type TweakpaneUiContext } from '../tweakpane';
 import { compileConfig } from './compileConfig';
-import { clearCustomObject, getCustomObject, setCustomObject } from './customObjectStorage';
-import { clearCustomTexture, getCustomTexture, setCustomTexture } from './customTextureStorage';
+import { customObjectSlot } from './customObjectStorage';
+import { customTextureSlot } from './customTextureStorage';
 import { createDemoApp } from './demoApp';
 import { createPersistentParams, resetParamsToDefaults } from './persistParams';
+import { workspaceBackgroundSlot } from './workspaceBackgroundStorage';
+import { applyWorkspaceBackgroundColor, clearWorkspaceBackgroundImage, setWorkspaceBackgroundImageFromBlob } from './workspaceDom';
 
 /** When true, shows GPU frame time graph and hooks into engine draw (adds per-frame overhead). Set false for production. */
 const ENABLE_FRAME_TIME_GRAPH = false;
@@ -12,16 +14,26 @@ const ENABLE_FRAME_TIME_GRAPH = false;
 const params = createPersistentParams();
 const uiContext: TweakpaneUiContext = {};
 
-const { bindings, setKaDisabled, frameTimeCallbacks, setCustomTextureAvailable, setCustomObjectAvailable } = createTweakpaneUi(
-  params,
-  uiContext,
-  {
-    compileConfig,
-    enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
-  },
-);
+const {
+  bindings,
+  setKaDisabled,
+  frameTimeCallbacks,
+  setCustomTextureAvailable,
+  setCustomObjectAvailable,
+  setWorkspaceBackgroundAvailable,
+} = createTweakpaneUi(params, uiContext, {
+  compileConfig,
+  enableFrameTimeGraph: ENABLE_FRAME_TIME_GRAPH,
+});
 
 const container = document.getElementById('root') as HTMLDivElement;
+
+function applyWorkspace(): void {
+  applyWorkspaceBackgroundColor(container, params);
+}
+
+applyWorkspace();
+
 const app = createDemoApp(container, params, frameTimeCallbacks);
 
 uiContext.onReset = () => {
@@ -30,6 +42,7 @@ uiContext.onReset = () => {
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   app.scene.light.setColor(params.lightColor.r, params.lightColor.g, params.lightColor.b);
   app.applyCamera();
+  applyWorkspace();
   app.engine.draw();
 };
 uiContext.recreateEmitter = app.recreateEmitter;
@@ -41,7 +54,8 @@ uiContext.applyCamera = app.applyCamera;
 uiContext.updateBatches = () => app.updateBatches(compileConfig(params, 0, 0));
 
 uiContext.onLoadCustomTexture = (file: File) => {
-  setCustomTexture(file)
+  customTextureSlot
+    .set(file)
     .then(() => app.setCustomTextureFromBlob(file))
     .then(() => {
       params.texture = 'custom';
@@ -51,14 +65,15 @@ uiContext.onLoadCustomTexture = (file: File) => {
 };
 uiContext.onClearCustomTexture = () => {
   if (params.texture === 'custom') params.texture = 'atlas';
-  clearCustomTexture().then(() => {
+  customTextureSlot.clear().then(() => {
     app.clearCustomTexture();
     setCustomTextureAvailable(false);
     app.applyTextureChoice();
   });
 };
 uiContext.onLoadCustomObject = (file: File) => {
-  setCustomObject(file)
+  customObjectSlot
+    .set(file)
     .then(() => app.setCustomObjectFromBlob(file))
     .then(() => setCustomObjectAvailable(true))
     .catch((error) => {
@@ -66,26 +81,52 @@ uiContext.onLoadCustomObject = (file: File) => {
     });
 };
 uiContext.onClearCustomObject = () => {
-  clearCustomObject().then(() => {
+  customObjectSlot.clear().then(() => {
     app.clearCustomObject();
     setCustomObjectAvailable(false);
   });
 };
 uiContext.setNoisePreviewVisible = app.setNoisePreviewVisible;
 
-getCustomTexture().then((blob) => {
+uiContext.applyWorkspace = applyWorkspace;
+uiContext.onLoadWorkspaceBackground = (file: File) => {
+  workspaceBackgroundSlot
+    .set(file)
+    .then(() => {
+      setWorkspaceBackgroundImageFromBlob(container, file);
+      setWorkspaceBackgroundAvailable(true);
+    })
+    .catch((error) => {
+      console.error('Failed to save workspace background', error);
+    });
+};
+uiContext.onClearWorkspaceBackground = () => {
+  workspaceBackgroundSlot.clear().then(() => {
+    clearWorkspaceBackgroundImage(container);
+    setWorkspaceBackgroundAvailable(false);
+  });
+};
+
+workspaceBackgroundSlot.get().then((blob) => {
+  if (blob) {
+    setWorkspaceBackgroundImageFromBlob(container, blob);
+    setWorkspaceBackgroundAvailable(true);
+  }
+});
+
+customTextureSlot.get().then((blob) => {
   if (blob) {
     app.setCustomTextureFromBlob(blob).then(() => setCustomTextureAvailable(true));
   }
 });
-getCustomObject().then((blob) => {
+customObjectSlot.get().then((blob) => {
   if (blob) {
     app
       .setCustomObjectFromBlob(blob)
       .then(() => setCustomObjectAvailable(true))
       .catch((error) => {
         console.error('Failed to restore custom OBJ', error);
-        void clearCustomObject();
+        void customObjectSlot.clear();
       });
   }
 });

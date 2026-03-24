@@ -30,6 +30,10 @@ const defaultParams = {
     distance: 10000,
     type: 'perspective' as 'orthographic' | 'perspective',
   },
+  /** Page chrome behind the canvas (color in localStorage; optional image in IndexedDB). */
+  workspace: {
+    backgroundColor: { r: 65 / 255, g: 105 / 255, b: 225 / 255 },
+  },
   particle: {
     lifeTime: 800,
     count: 100,
@@ -129,6 +133,20 @@ function validateParams(loaded: Params): void {
       loaded.camera.type = 'perspective';
     }
   }
+  if (
+    !loaded.workspace ||
+    !loaded.workspace.backgroundColor ||
+    typeof loaded.workspace.backgroundColor.r !== 'number' ||
+    typeof loaded.workspace.backgroundColor.g !== 'number' ||
+    typeof loaded.workspace.backgroundColor.b !== 'number'
+  ) {
+    loaded.workspace = { backgroundColor: { r: 65 / 255, g: 105 / 255, b: 225 / 255 } };
+  } else {
+    const c = loaded.workspace.backgroundColor;
+    c.r = Math.max(0, Math.min(1, c.r));
+    c.g = Math.max(0, Math.min(1, c.g));
+    c.b = Math.max(0, Math.min(1, c.b));
+  }
   if (typeof loaded.useLighting !== 'boolean') loaded.useLighting = true;
   if (
     !loaded.lightColor ||
@@ -140,11 +158,7 @@ function validateParams(loaded: Params): void {
   }
   if (typeof loaded.useAlphaBlending !== 'boolean') loaded.useAlphaBlending = true;
   if (loaded.texture !== 'none' && loaded.texture !== 'atlas' && loaded.texture !== 'custom') loaded.texture = 'atlas';
-  if (
-    !loaded.atlasLayout ||
-    typeof loaded.atlasLayout.columns !== 'number' ||
-    typeof loaded.atlasLayout.rows !== 'number'
-  ) {
+  if (!loaded.atlasLayout || typeof loaded.atlasLayout.columns !== 'number' || typeof loaded.atlasLayout.rows !== 'number') {
     loaded.atlasLayout = { columns: 1, rows: 1 };
   } else {
     loaded.atlasLayout.columns = Math.max(1, Math.min(32, Math.floor(loaded.atlasLayout.columns)));
@@ -162,13 +176,7 @@ function validateParams(loaded: Params): void {
     loaded.particle.randomStartRotation = false;
   }
   const vs = loaded.particle.velocitySpread;
-  if (
-    !vs ||
-    typeof vs !== 'object' ||
-    typeof vs.x !== 'number' ||
-    typeof vs.y !== 'number' ||
-    typeof vs.z !== 'number'
-  ) {
+  if (!vs || typeof vs !== 'object' || typeof vs.x !== 'number' || typeof vs.y !== 'number' || typeof vs.z !== 'number') {
     loaded.particle.velocitySpread = { x: 1, y: 1, z: 1 };
   } else {
     loaded.particle.velocitySpread = {
@@ -204,6 +212,7 @@ export function resetParamsToDefaults(params: Params): void {
   params.texture = d.texture;
   params.atlasLayout = { ...d.atlasLayout };
   params.camera = { ...d.camera };
+  params.workspace = { backgroundColor: { ...d.workspace.backgroundColor } };
   Object.assign(params.particle, d.particle);
   Object.assign(params.physics, d.physics);
   Object.assign(params.atlas, d.atlas);
