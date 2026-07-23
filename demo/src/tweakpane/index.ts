@@ -17,6 +17,7 @@ export type TweakpaneUiContext = {
   setUseLighting?: () => void;
   setLightColor?: () => void;
   setUseAlphaBlending?: () => void;
+  setBloom?: () => void;
   applyTextureChoice?: () => void;
   applyCamera?: () => void;
   /** Apply current particle/physics/atlas/material params to all existing batches (realtime). */
@@ -46,6 +47,7 @@ export type TweakpaneUiResult = {
   /** Root panes (for pane-level listeners, e.g. undo `change` with `ev.last`). */
   rootPanes: Pane[];
   setKaDisabled: (disabled: boolean) => void;
+  refreshDecayUi: () => void;
   frameTimeCallbacks: FrameTimeGraphCallbacks | null;
   /** Call when a custom texture is saved or removed so the texture picker can show/hide "Custom". */
   setCustomTextureAvailable: (available: boolean) => void;
@@ -105,6 +107,7 @@ export function createTweakpaneUi(
     pane: particlePane,
     bindings: particleBindings,
     setKaDisabled,
+    refreshDecayUi,
   } = createParticlePane(params, context, { compileConfig: options.compileConfig });
   container.appendChild(particlePane.element);
   for (const binding of particleBindings) {
@@ -129,6 +132,7 @@ export function createTweakpaneUi(
     bindings,
     rootPanes,
     setKaDisabled,
+    refreshDecayUi,
     frameTimeCallbacks,
     setCustomTextureAvailable,
     setCustomObjectAvailable,

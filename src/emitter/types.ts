@@ -2,6 +2,18 @@ import type { Geometry } from '../loaders/objectLoader/types';
 
 export type EmitterOrientation = 'billboard' | 'free';
 
+export type DecayMode = 'none' | 'size' | 'opacity';
+
+export interface ParticleDecay {
+  mode: DecayMode;
+  /** When decay finishes, as fraction of lifetime [0, 1]. @default 1 */
+  endOffset: number;
+  /** Decay window length, fraction of lifetime [0, 1]. @default 1 */
+  duration: number;
+  /** CSS cubic-bezier control points; endpoints fixed at (0,0) and (1,1). */
+  bezier: { x1: number; y1: number; x2: number; y2: number };
+}
+
 export interface EmitterOptions {
   /** Particle orientation: billboard = always face camera, free = use mesh rotation */
   orientation: EmitterOrientation;
@@ -88,10 +100,10 @@ export interface ParticleBatchOptions {
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
   /**
-   * Amount of scaling applied to a particle based on its age.
-   * @default 0
+   * Age-based size or opacity decay (one mode per batch).
+   * @default { mode: 'none', endOffset: 1, duration: 1, bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 } }
    */
-  scaleWithAge: number;
+  decay?: ParticleDecay;
   /**
    * Diameter of a spawn area in **pixels**.
    * */
@@ -130,7 +142,7 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
     offset: { column: number; row: number };
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
-  scaleWithAge: number;
+  decay: ParticleDecay;
   randomStartRotation: boolean;
   drag: number;
   angularDrag: number;

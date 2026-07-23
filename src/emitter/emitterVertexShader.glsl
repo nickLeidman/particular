@@ -2,6 +2,7 @@
 
 #include ../shaderFragments/transform.frag
 #include ../shaderFragments/physics.frag
+#include ../shaderFragments/decay.glsl
 
 precision highp float;
 
@@ -40,8 +41,13 @@ layout(std140) uniform Emitter {
     float spawnDuration;
     float spawnSize;
 
-    float scaleWithAge;
+    float decayMode;
+    float decayEndOffset;
+    float decayDuration;
     float omega0;
+
+    vec4 decayBezier;
+
     vec2 atlasSize;
 
     vec2 atlasOffset;
@@ -79,6 +85,7 @@ out vec3 vFragmentPosition;
 out vec3 vNormal;
 out vec3 vViewPosition;
 flat out float vBorn;
+flat out float vDecayFactor;
 out float vColorSeed;
 out float vRipeness;
 out vec2 vTexCoords;
@@ -124,8 +131,12 @@ void main() {
 
     float normalizedAge = age / lifetime;
 
-    /*Scale*/
-    float ageScale = 1.0 - (pow(normalizedAge, 4.0) * scaleWithAge);
+    /*Scale / decay*/
+    float decayF = decayMode < 0.5
+        ? 1.0
+        : decayFactor(normalizedAge, decayEndOffset, decayDuration, decayBezier);
+    float ageScale = decayMode > 0.5 && decayMode < 1.5 ? decayF : 1.0;
+    vDecayFactor = decayF;
     float sizeVariance = sampleNoise(instanceIndex, batchHash + 110.0) * 0.8 + 0.5;
     vec3 sizeScale = vec3(size * particleScaleVec.x, size * particleScaleVec.y, size * particleScaleVec.z) * ageScale * sizeVariance;
     mat4 scaleMatrix = scale(mat4(1.0), sizeScale);
@@ -202,7 +213,7 @@ void main() {
 
     vColorSeed = sampleNoiseNormalized(instanceIndex, batchHash + 200.0);
     vRipeness = clamp(age / (lifetime / 16.0), 0.7, 1.0);
-    vBorn = float(age >= 0.0 && ageScale > 0.0);
+    vBorn = float(age >= 0.0 && (decayMode < 1.5 || decayF > 0.0));
     vTexCoords = aTexcoord;
     vAge = age;
     vPosition = aPosition;

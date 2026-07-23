@@ -8,7 +8,50 @@ import { SimplexNoise } from '../noise/simplex/simplexNoise';
 import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import plane from './plane.obj?raw';
-import type { EmitterOptions, ParticleBatchOptions, ParticleBatchProcessed } from './types';
+import type {
+  DecayMode,
+  EmitterOptions,
+  ParticleBatchOptions,
+  ParticleBatchProcessed,
+  ParticleDecay,
+} from './types';
+
+/** std140 Emitter block size in floats (includes padding before atlasSweepOptions vec3). */
+const EMITTER_UBO_FLOAT_COUNT = 80;
+
+const DEFAULT_DECAY: ParticleDecay = {
+  mode: 'none',
+  endOffset: 1,
+  duration: 1,
+  bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
+};
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function decayModeToShader(mode: DecayMode): number {
+  if (mode === 'size') return 1;
+  if (mode === 'opacity') return 2;
+  return 0;
+}
+
+function normalizeDecay(decay: ParticleDecay | undefined): ParticleDecay {
+  const d = decay ?? DEFAULT_DECAY;
+  const mode = d.mode === 'size' || d.mode === 'opacity' ? d.mode : 'none';
+  const bezier = d.bezier ?? DEFAULT_DECAY.bezier;
+  return {
+    mode,
+    endOffset: clamp01(d.endOffset ?? DEFAULT_DECAY.endOffset),
+    duration: clamp01(d.duration ?? DEFAULT_DECAY.duration),
+    bezier: {
+      x1: clamp01(bezier.x1),
+      y1: Math.max(-0.5, Math.min(1.5, bezier.y1)),
+      x2: clamp01(bezier.x2),
+      y2: Math.max(-0.5, Math.min(1.5, bezier.y2)),
+    },
+  };
+}
 
 export class Emitter extends Entity {
   private readonly particleBuffer: WebGLBuffer;
@@ -63,7 +106,7 @@ export class Emitter extends Entity {
     this.particleBuffer = particleBuffer;
     gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Emitter'), Engine.BindingPoints.Emitter);
     gl.bindBufferBase(gl.UNIFORM_BUFFER, Engine.BindingPoints.Emitter, this.particleBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, 72 * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, EMITTER_UBO_FLOAT_COUNT * Float32Array.BYTES_PER_ELEMENT, gl.DYNAMIC_DRAW);
 
     this.particleTexture = options.texture;
 
@@ -100,7 +143,7 @@ export class Emitter extends Entity {
       velocitySpread: options.velocitySpread ?? { x: 1, y: 1, z: 1 },
       spawnDuration: options.spawnDuration ?? 0,
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
-      scaleWithAge: options.scaleWithAge ?? 0,
+      decay: normalizeDecay(options.decay),
       randomStartRotation: options.randomStartRotation ?? false,
       drag: options.Cd === 0 ? 0 : (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: options.Cr === 0 ? 0 : (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
@@ -157,8 +200,16 @@ export class Emitter extends Entity {
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
       particleBatch.spawnSize,
 
-      particleBatch.scaleWithAge,
+      decayModeToShader(particleBatch.decay.mode),
+      particleBatch.decay.endOffset,
+      particleBatch.decay.duration,
       particleBatch.omega0,
+
+      particleBatch.decay.bezier.x1,
+      particleBatch.decay.bezier.y1,
+      particleBatch.decay.bezier.x2,
+      particleBatch.decay.bezier.y2,
+
       this.atlasLayout.columns,
       this.atlasLayout.rows,
 
@@ -166,7 +217,9 @@ export class Emitter extends Entity {
       particleBatch.atlas.offset.column,
       particleBatch.atlas.offset.row,
       particleBatch.randomStartRotation ? 1 : 0,
-      0, // padding
+      0, // padding after randomStartRotation
+      0, // std140: align following vec3 to 16-byte boundary
+      0, // std140: align following vec3 to 16-byte boundary
 
       // vec3 and a padding byte
       particleBatch.atlas?.sweep?.by !== 'column' ? 0 : 1,

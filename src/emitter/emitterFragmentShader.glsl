@@ -9,6 +9,7 @@ in vec3 vFragmentPosition;
 in vec3 vNormal;
 in vec3 vViewPosition;
 flat in float vBorn;
+flat in float vDecayFactor;
 in float vRipeness;
 in float vAge;
 
@@ -43,8 +44,13 @@ layout(std140) uniform Emitter {
     float spawnDuration;
     float spawnSize;
 
-    float scaleWithAge;
+    float decayMode;
+    float decayEndOffset;
+    float decayDuration;
     float omega0;
+
+    vec4 decayBezier;
+
     vec2 atlasSize;
 
     vec2 atlasOffset;
@@ -118,6 +124,10 @@ void main() {
         result = ambientTerm + diffuseTerm + specularTerm;
     } else {
         result = Kd_eff;
+    }
+
+    if (decayMode > 1.5) {
+        outAlpha *= vDecayFactor;
     }
 
     outColor = vec4(result, outAlpha);

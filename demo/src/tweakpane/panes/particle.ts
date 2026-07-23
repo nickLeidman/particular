@@ -1,4 +1,6 @@
 import type { ParticleBatchOptions } from '@nleidman/particular';
+import * as EssentialsPlugin from '@tweakpane/plugin-essentials';
+import { CubicBezier, type CubicBezierApi } from '@tweakpane/plugin-essentials';
 import type { BindingApi } from '@tweakpane/core';
 import { Pane } from 'tweakpane';
 import type { Params } from '../../script/persistParams';
@@ -14,6 +16,7 @@ export type ParticlePaneResult = {
   pane: Pane;
   bindings: BindingApi[];
   setKaDisabled: (disabled: boolean) => void;
+  refreshDecayUi: () => void;
 };
 
 export const createParticlePane = (
@@ -22,7 +25,22 @@ export const createParticlePane = (
   options: { compileConfig: (p: Params, x: number, y: number) => ParticleBatchOptions },
 ): ParticlePaneResult => {
   const particlePane = new Pane({ title: 'Particle' });
+  particlePane.registerPlugin(EssentialsPlugin);
   const bindings: BindingApi[] = [];
+
+  const applyBezierToParams = (value: CubicBezier) => {
+    const [x1, y1, x2, y2] = value.toObject();
+    const b = params.particle.decay.bezier;
+    b.x1 = x1;
+    b.y1 = y1;
+    b.x2 = x2;
+    b.y2 = y2;
+  };
+
+  const bezierFromParams = () => {
+    const b = params.particle.decay.bezier;
+    return new CubicBezier(b.x1, b.y1, b.x2, b.y2);
+  };
 
   bindings.push(
     particlePane.addBinding(params.particle, 'lifeTime', {
@@ -113,14 +131,45 @@ export const createParticlePane = (
       label: 'spawn size (px)',
     }),
   );
+  const decayFolder = particlePane.addFolder({ title: 'Decay', expanded: true });
   bindings.push(
-    particlePane.addBinding(params.particle, 'scaleWithAge', {
-      min: -5,
-      max: 5,
-      step: 0.1,
-      label: 'shrink with age',
+    decayFolder.addBinding(params.particle.decay, 'mode', {
+      options: { none: 'none', size: 'size', opacity: 'opacity' },
+      label: 'mode',
     }),
   );
+  bindings.push(
+    decayFolder.addBinding(params.particle.decay, 'endOffset', {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: 'end offset',
+    }),
+  );
+  bindings.push(
+    decayFolder.addBinding(params.particle.decay, 'duration', {
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: 'duration',
+    }),
+  );
+  const bezierBlade = decayFolder.addBlade({
+    view: 'cubicbezier',
+    value: bezierFromParams().toObject(),
+    label: 'easing',
+    expanded: true,
+    picker: 'inline',
+  }) as CubicBezierApi;
+
+  const refreshDecayUi = () => {
+    bezierBlade.value = bezierFromParams();
+  };
+
+  bezierBlade.on('change', (ev) => {
+    applyBezierToParams(ev.value);
+  });
+  bindings.push(bezierBlade as unknown as BindingApi);
   bindings.push(
     particlePane.addBinding(params.particle, 'swayStrength', {
       min: 0,
@@ -285,5 +334,6 @@ export const createParticlePane = (
     pane: particlePane,
     bindings,
     setKaDisabled,
+    refreshDecayUi,
   };
 };

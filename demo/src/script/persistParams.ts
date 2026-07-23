@@ -7,6 +7,7 @@ export const PARTICULAR_DEMO_PROJECT_VERSION = 1 as const;
 export const PARTICULAR_DEMO_PROJECT_VERSION_KEY = 'particularDemoProjectVersion' as const;
 
 export type TextureChoice = 'none' | 'atlas' | 'custom';
+export type BloomQuality = 'low' | 'medium' | 'high';
 
 /** Specular exponent (Ns) limited to powers of two for cheaper pow() on GPU. */
 export const Ns_POW2 = [1, 2, 4, 8, 16, 32, 64, 128, 256] as const;
@@ -46,7 +47,7 @@ const defaultParams = {
   },
   /** Page chrome behind the canvas (color in localStorage; optional image in IndexedDB). */
   workspace: {
-    backgroundColor: { r: 65 / 255, g: 105 / 255, b: 225 / 255 },
+    backgroundColor: { r: 0.32, g: 0.32, b: 0.32 },
   },
   /** Scene light color (separate from emitter `useLighting` toggle). */
   lighting: {
@@ -58,6 +59,14 @@ const defaultParams = {
     useAlphaBlending: false,
     texture: 'none' as TextureChoice,
     atlasLayout: { columns: 1, rows: 1 },
+    bloom: {
+      enabled: false,
+      threshold: 1,
+      knee: 0.5,
+      intensity: 1.2,
+      radius: 1,
+      quality: 'medium' as BloomQuality,
+    },
   },
   particle: {
     lifeTime: 800,
@@ -72,7 +81,12 @@ const defaultParams = {
     gravity: { x: 0, y: -500, z: 0 },
     spawnDuration: 200,
     spawnSize: 60,
-    scaleWithAge: 1,
+    decay: {
+      mode: 'size' as const,
+      endOffset: 1,
+      duration: 1,
+      bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
+    },
     swayStrength: 0,
     swayTimeScale: 0.04,
     useDiffuseAsAmbient: true,
@@ -231,7 +245,7 @@ function validateParams(loaded: Params): void {
     typeof loaded.workspace.backgroundColor.g !== 'number' ||
     typeof loaded.workspace.backgroundColor.b !== 'number'
   ) {
-    loaded.workspace = { backgroundColor: { r: 65 / 255, g: 105 / 255, b: 225 / 255 } };
+    loaded.workspace = { backgroundColor: { r: 0.32, g: 0.32, b: 0.32 } };
   } else {
     const c = loaded.workspace.backgroundColor;
     c.r = Math.max(0, Math.min(1, c.r));
@@ -274,6 +288,18 @@ function validateParams(loaded: Params): void {
     e.atlasLayout.columns = Math.max(1, Math.min(32, Math.floor(e.atlasLayout.columns)));
     e.atlasLayout.rows = Math.max(1, Math.min(32, Math.floor(e.atlasLayout.rows)));
   }
+  if (!e.bloom || typeof e.bloom !== 'object') {
+    e.bloom = JSON.parse(JSON.stringify(d.emitter.bloom)) as Params['emitter']['bloom'];
+  } else {
+    e.bloom.enabled = Boolean(e.bloom.enabled);
+    e.bloom.threshold = Math.max(0, Number.isFinite(e.bloom.threshold) ? e.bloom.threshold : d.emitter.bloom.threshold);
+    e.bloom.knee = Math.max(0, Number.isFinite(e.bloom.knee) ? e.bloom.knee : d.emitter.bloom.knee);
+    e.bloom.intensity = Math.max(0, Number.isFinite(e.bloom.intensity) ? e.bloom.intensity : d.emitter.bloom.intensity);
+    e.bloom.radius = Math.max(0, Number.isFinite(e.bloom.radius) ? e.bloom.radius : d.emitter.bloom.radius);
+    if (e.bloom.quality !== 'low' && e.bloom.quality !== 'medium' && e.bloom.quality !== 'high') {
+      e.bloom.quality = d.emitter.bloom.quality;
+    }
+  }
 
   if (!loaded.particle || typeof loaded.particle !== 'object') {
     loaded.particle = JSON.parse(JSON.stringify(d.particle)) as Params['particle'];
@@ -306,6 +332,23 @@ function validateParams(loaded: Params): void {
       z: Math.max(0, Math.min(1, vs.z)),
     };
   }
+  if (!p.decay || typeof p.decay !== 'object') {
+    p.decay = JSON.parse(JSON.stringify(d.particle.decay)) as Params['particle']['decay'];
+  }
+  const decay = p.decay;
+  if (decay.mode !== 'none' && decay.mode !== 'size' && decay.mode !== 'opacity') {
+    decay.mode = d.particle.decay.mode;
+  }
+  decay.endOffset = Math.max(0, Math.min(1, Number.isFinite(decay.endOffset) ? decay.endOffset : d.particle.decay.endOffset));
+  decay.duration = Math.max(0, Math.min(1, Number.isFinite(decay.duration) ? decay.duration : d.particle.decay.duration));
+  if (!decay.bezier || typeof decay.bezier !== 'object') {
+    decay.bezier = { ...d.particle.decay.bezier };
+  }
+  const b = decay.bezier;
+  b.x1 = Math.max(0, Math.min(1, Number.isFinite(b.x1) ? b.x1 : d.particle.decay.bezier.x1));
+  b.y1 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y1) ? b.y1 : d.particle.decay.bezier.y1));
+  b.x2 = Math.max(0, Math.min(1, Number.isFinite(b.x2) ? b.x2 : d.particle.decay.bezier.x2));
+  b.y2 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y2) ? b.y2 : d.particle.decay.bezier.y2));
   p.Ns = nearestPowerOfTwo(p.Ns);
 }
 
@@ -361,6 +404,7 @@ export function assignValidatedParamsIntoLiveParams(target: Params, validated: P
   te.useAlphaBlending = ve.useAlphaBlending;
   te.texture = ve.texture;
   Object.assign(te.atlasLayout, ve.atlasLayout);
+  Object.assign(te.bloom, ve.bloom);
   assignParticleBranchInto(target.particle, validated.particle);
 }
 
@@ -409,6 +453,7 @@ export function resetParamsToDefaults(params: Params): void {
   pe.useAlphaBlending = de.useAlphaBlending;
   pe.texture = de.texture;
   pe.atlasLayout = { ...de.atlasLayout };
+  pe.bloom = { ...de.bloom };
   Object.assign(params.particle, JSON.parse(JSON.stringify(d.particle)) as Params['particle']);
 }
 
