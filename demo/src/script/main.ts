@@ -25,7 +25,7 @@ const {
   bindings,
   rootPanes,
   setKaDisabled,
-  refreshDecayUi,
+  refreshEnvelopeUi,
   frameTimeCallbacks,
   setCustomTextureAvailable,
   setCustomObjectAvailable,
@@ -49,7 +49,7 @@ const app = createDemoApp(container, params, frameTimeCallbacks);
 
 function refreshAfterBulkParamsChange(): void {
   for (const b of bindings) b.refresh();
-  refreshDecayUi();
+  refreshEnvelopeUi();
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   app.scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b);
   app.applyCamera();

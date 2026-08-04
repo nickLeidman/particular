@@ -81,9 +81,13 @@ const defaultParams = {
     gravity: { x: 0, y: -500, z: 0 },
     spawnDuration: 200,
     spawnSize: 60,
+    attack: {
+      mode: 'none' as const,
+      duration: 1,
+      bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
+    },
     decay: {
       mode: 'size' as const,
-      endOffset: 1,
       duration: 1,
       bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
     },
@@ -332,23 +336,30 @@ function validateParams(loaded: Params): void {
       z: Math.max(0, Math.min(1, vs.z)),
     };
   }
-  if (!p.decay || typeof p.decay !== 'object') {
-    p.decay = JSON.parse(JSON.stringify(d.particle.decay)) as Params['particle']['decay'];
-  }
-  const decay = p.decay;
-  if (decay.mode !== 'none' && decay.mode !== 'size' && decay.mode !== 'opacity') {
-    decay.mode = d.particle.decay.mode;
-  }
-  decay.endOffset = Math.max(0, Math.min(1, Number.isFinite(decay.endOffset) ? decay.endOffset : d.particle.decay.endOffset));
-  decay.duration = Math.max(0, Math.min(1, Number.isFinite(decay.duration) ? decay.duration : d.particle.decay.duration));
-  if (!decay.bezier || typeof decay.bezier !== 'object') {
-    decay.bezier = { ...d.particle.decay.bezier };
-  }
-  const b = decay.bezier;
-  b.x1 = Math.max(0, Math.min(1, Number.isFinite(b.x1) ? b.x1 : d.particle.decay.bezier.x1));
-  b.y1 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y1) ? b.y1 : d.particle.decay.bezier.y1));
-  b.x2 = Math.max(0, Math.min(1, Number.isFinite(b.x2) ? b.x2 : d.particle.decay.bezier.x2));
-  b.y2 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y2) ? b.y2 : d.particle.decay.bezier.y2));
+  const validateEnvelope = (
+    envelope: Params['particle']['decay'] | undefined,
+    fallback: Params['particle']['decay'],
+  ): Params['particle']['decay'] => {
+    if (!envelope || typeof envelope !== 'object') {
+      return JSON.parse(JSON.stringify(fallback)) as Params['particle']['decay'];
+    }
+    if (envelope.mode !== 'none' && envelope.mode !== 'size' && envelope.mode !== 'opacity') {
+      envelope.mode = fallback.mode;
+    }
+    delete (envelope as { endOffset?: number }).endOffset;
+    envelope.duration = Math.max(0, Math.min(1, Number.isFinite(envelope.duration) ? envelope.duration : fallback.duration));
+    if (!envelope.bezier || typeof envelope.bezier !== 'object') {
+      envelope.bezier = { ...fallback.bezier };
+    }
+    const b = envelope.bezier;
+    b.x1 = Math.max(0, Math.min(1, Number.isFinite(b.x1) ? b.x1 : fallback.bezier.x1));
+    b.y1 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y1) ? b.y1 : fallback.bezier.y1));
+    b.x2 = Math.max(0, Math.min(1, Number.isFinite(b.x2) ? b.x2 : fallback.bezier.x2));
+    b.y2 = Math.max(-0.5, Math.min(1.5, Number.isFinite(b.y2) ? b.y2 : fallback.bezier.y2));
+    return envelope;
+  };
+  p.attack = validateEnvelope(p.attack, d.particle.attack);
+  p.decay = validateEnvelope(p.decay, d.particle.decay);
   p.Ns = nearestPowerOfTwo(p.Ns);
 }
 

@@ -1,4 +1,4 @@
-// CSS-style cubic-bezier easing for particle decay (endpoints (0,0) and (1,1)).
+// CSS-style cubic-bezier easing for particle attack/decay (endpoints (0,0) and (1,1)).
 
 float cubicBezierComponent(float t, float a, float b) {
     float inv = 1.0 - t;
@@ -32,9 +32,26 @@ float solveBezierT(float x, vec4 bez) {
     return t;
 }
 
-float decayFactor(float normalizedAge, float endOffset, float duration, vec4 bezier) {
-    float windowEnd = endOffset;
-    float windowStart = max(0.0, endOffset - duration);
+/** Attack: window [0, duration], factor 0 → 1. */
+float attackFactor(float normalizedAge, float duration, vec4 bezier) {
+    float windowEnd = duration;
+
+    if (normalizedAge <= 0.0) {
+        return 0.0;
+    }
+    if (normalizedAge >= windowEnd || windowEnd < 1e-6) {
+        return 1.0;
+    }
+
+    float u = normalizedAge / windowEnd;
+    float t = solveBezierT(u, bezier);
+    return cubicBezierY(t, bezier);
+}
+
+/** Decay: window [1 − duration, 1], factor 1 → 0. */
+float decayFactor(float normalizedAge, float duration, vec4 bezier) {
+    float windowEnd = 1.0;
+    float windowStart = max(0.0, 1.0 - duration);
 
     if (normalizedAge < windowStart) {
         return 1.0;

@@ -16,7 +16,7 @@ export type ParticlePaneResult = {
   pane: Pane;
   bindings: BindingApi[];
   setKaDisabled: (disabled: boolean) => void;
-  refreshDecayUi: () => void;
+  refreshEnvelopeUi: () => void;
 };
 
 export const createParticlePane = (
@@ -28,17 +28,16 @@ export const createParticlePane = (
   particlePane.registerPlugin(EssentialsPlugin);
   const bindings: BindingApi[] = [];
 
-  const applyBezierToParams = (value: CubicBezier) => {
+  const applyBezierToEnvelope = (envelope: Params['particle']['decay'], value: CubicBezier) => {
     const [x1, y1, x2, y2] = value.toObject();
-    const b = params.particle.decay.bezier;
-    b.x1 = x1;
-    b.y1 = y1;
-    b.x2 = x2;
-    b.y2 = y2;
+    envelope.bezier.x1 = x1;
+    envelope.bezier.y1 = y1;
+    envelope.bezier.x2 = x2;
+    envelope.bezier.y2 = y2;
   };
 
-  const bezierFromParams = () => {
-    const b = params.particle.decay.bezier;
+  const bezierFromEnvelope = (envelope: Params['particle']['decay']) => {
+    const b = envelope.bezier;
     return new CubicBezier(b.x1, b.y1, b.x2, b.y2);
   };
 
@@ -131,19 +130,38 @@ export const createParticlePane = (
       label: 'spawn size (px)',
     }),
   );
-  const decayFolder = particlePane.addFolder({ title: 'Decay', expanded: true });
+  const attackFolder = particlePane.addFolder({ title: 'Attack', expanded: true });
   bindings.push(
-    decayFolder.addBinding(params.particle.decay, 'mode', {
+    attackFolder.addBinding(params.particle.attack, 'mode', {
       options: { none: 'none', size: 'size', opacity: 'opacity' },
       label: 'mode',
     }),
   );
   bindings.push(
-    decayFolder.addBinding(params.particle.decay, 'endOffset', {
+    attackFolder.addBinding(params.particle.attack, 'duration', {
       min: 0,
       max: 1,
       step: 0.01,
-      label: 'end offset',
+      label: 'duration',
+    }),
+  );
+  const attackBezierBlade = attackFolder.addBlade({
+    view: 'cubicbezier',
+    value: bezierFromEnvelope(params.particle.attack).toObject(),
+    label: 'easing',
+    expanded: true,
+    picker: 'inline',
+  }) as CubicBezierApi;
+  attackBezierBlade.on('change', (ev) => {
+    applyBezierToEnvelope(params.particle.attack, ev.value);
+  });
+  bindings.push(attackBezierBlade as unknown as BindingApi);
+
+  const decayFolder = particlePane.addFolder({ title: 'Decay', expanded: true });
+  bindings.push(
+    decayFolder.addBinding(params.particle.decay, 'mode', {
+      options: { none: 'none', size: 'size', opacity: 'opacity' },
+      label: 'mode',
     }),
   );
   bindings.push(
@@ -154,22 +172,22 @@ export const createParticlePane = (
       label: 'duration',
     }),
   );
-  const bezierBlade = decayFolder.addBlade({
+  const decayBezierBlade = decayFolder.addBlade({
     view: 'cubicbezier',
-    value: bezierFromParams().toObject(),
+    value: bezierFromEnvelope(params.particle.decay).toObject(),
     label: 'easing',
     expanded: true,
     picker: 'inline',
   }) as CubicBezierApi;
-
-  const refreshDecayUi = () => {
-    bezierBlade.value = bezierFromParams();
-  };
-
-  bezierBlade.on('change', (ev) => {
-    applyBezierToParams(ev.value);
+  decayBezierBlade.on('change', (ev) => {
+    applyBezierToEnvelope(params.particle.decay, ev.value);
   });
-  bindings.push(bezierBlade as unknown as BindingApi);
+  bindings.push(decayBezierBlade as unknown as BindingApi);
+
+  const refreshEnvelopeUi = () => {
+    attackBezierBlade.value = bezierFromEnvelope(params.particle.attack);
+    decayBezierBlade.value = bezierFromEnvelope(params.particle.decay);
+  };
   bindings.push(
     particlePane.addBinding(params.particle, 'swayStrength', {
       min: 0,
@@ -334,6 +352,6 @@ export const createParticlePane = (
     pane: particlePane,
     bindings,
     setKaDisabled,
-    refreshDecayUi,
+    refreshEnvelopeUi,
   };
 };

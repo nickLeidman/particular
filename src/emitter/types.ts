@@ -2,13 +2,16 @@ import type { Geometry } from '../loaders/objectLoader/types';
 
 export type EmitterOrientation = 'billboard' | 'free';
 
-export type DecayMode = 'none' | 'size' | 'opacity';
+export type EnvelopeMode = 'none' | 'size' | 'opacity';
 
-export interface ParticleDecay {
-  mode: DecayMode;
-  /** When decay finishes, as fraction of lifetime [0, 1]. @default 1 */
-  endOffset: number;
-  /** Decay window length, fraction of lifetime [0, 1]. @default 1 */
+/** Shared shape for attack (fade-in) and decay (fade-out) envelopes. */
+export interface ParticleEnvelope {
+  mode: EnvelopeMode;
+  /**
+   * Envelope window length as a fraction of lifetime [0, 1].
+   * Attack: runs from `0` to `duration`. Decay: runs from `(1 − duration)` to end of life.
+   * @default 1
+   */
   duration: number;
   /** CSS cubic-bezier control points; endpoints fixed at (0,0) and (1,1). */
   bezier: { x1: number; y1: number; x2: number; y2: number };
@@ -100,10 +103,15 @@ export interface ParticleBatchOptions {
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
   /**
-   * Age-based size or opacity decay (one mode per batch).
-   * @default { mode: 'none', endOffset: 1, duration: 1, bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 } }
+   * Age-based size or opacity attack (fade-in from life start).
+   * @default { mode: 'none', duration: 1, bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 } }
    */
-  decay?: ParticleDecay;
+  attack?: ParticleEnvelope;
+  /**
+   * Age-based size or opacity decay (fade-out toward end of life).
+   * @default { mode: 'none', duration: 1, bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 } }
+   */
+  decay?: ParticleEnvelope;
   /**
    * Diameter of a spawn area in **pixels**.
    * */
@@ -142,7 +150,8 @@ export interface ParticleBatchProcessed extends ParticleBatchOptions {
     offset: { column: number; row: number };
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
-  decay: ParticleDecay;
+  attack: ParticleEnvelope;
+  decay: ParticleEnvelope;
   randomStartRotation: boolean;
   drag: number;
   angularDrag: number;

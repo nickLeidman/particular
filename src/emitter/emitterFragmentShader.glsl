@@ -9,7 +9,7 @@ in vec3 vFragmentPosition;
 in vec3 vNormal;
 in vec3 vViewPosition;
 flat in float vBorn;
-flat in float vDecayFactor;
+flat in float vOpacityFactor;
 in float vRipeness;
 in float vAge;
 
@@ -45,9 +45,9 @@ layout(std140) uniform Emitter {
     float spawnSize;
 
     float decayMode;
-    float decayEndOffset;
     float decayDuration;
     float omega0;
+    // padding byte
 
     vec4 decayBezier;
 
@@ -74,6 +74,10 @@ layout(std140) uniform Emitter {
 
     float swayStrength;
     float swayTimeScale;
+    float attackMode;
+    float attackDuration;
+
+    vec4 attackBezier;
 };
 
 uniform sampler2D uParticleTexture;
@@ -126,9 +130,7 @@ void main() {
         result = Kd_eff;
     }
 
-    if (decayMode > 1.5) {
-        outAlpha *= vDecayFactor;
-    }
+    outAlpha *= vOpacityFactor;
 
     outColor = vec4(result, outAlpha);
 }

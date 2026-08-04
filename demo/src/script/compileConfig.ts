@@ -32,9 +32,13 @@ export function compileConfig(params: Params, originX: number, originY: number):
       sweep: { by: a.sweepBy, stepTime: a.sweepStepTime, stepCount: a.sweepStepCount },
     },
     spawnSize: p.spawnSize,
+    attack: {
+      mode: p.attack.mode,
+      duration: p.attack.duration,
+      bezier: { ...p.attack.bezier },
+    },
     decay: {
       mode: p.decay.mode,
-      endOffset: p.decay.endOffset,
       duration: p.decay.duration,
       bezier: { ...p.decay.bezier },
     },

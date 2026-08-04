@@ -9,19 +9,18 @@ import emitterFragmentShader from './emitterFragmentShader.glsl';
 import emitterVertexShader from './emitterVertexShader.glsl';
 import plane from './plane.obj?raw';
 import type {
-  DecayMode,
   EmitterOptions,
+  EnvelopeMode,
   ParticleBatchOptions,
   ParticleBatchProcessed,
-  ParticleDecay,
+  ParticleEnvelope,
 } from './types';
 
-/** std140 Emitter block size in floats (includes padding before atlasSweepOptions vec3). */
-const EMITTER_UBO_FLOAT_COUNT = 80;
+/** std140 Emitter block size in floats (includes padding before atlasSweepOptions vec3 + attack vec4). */
+const EMITTER_UBO_FLOAT_COUNT = 84;
 
-const DEFAULT_DECAY: ParticleDecay = {
+const DEFAULT_ENVELOPE: ParticleEnvelope = {
   mode: 'none',
-  endOffset: 1,
   duration: 1,
   bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
 };
@@ -30,20 +29,19 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-function decayModeToShader(mode: DecayMode): number {
+function envelopeModeToShader(mode: EnvelopeMode): number {
   if (mode === 'size') return 1;
   if (mode === 'opacity') return 2;
   return 0;
 }
 
-function normalizeDecay(decay: ParticleDecay | undefined): ParticleDecay {
-  const d = decay ?? DEFAULT_DECAY;
+function normalizeEnvelope(envelope: ParticleEnvelope | undefined): ParticleEnvelope {
+  const d = envelope ?? DEFAULT_ENVELOPE;
   const mode = d.mode === 'size' || d.mode === 'opacity' ? d.mode : 'none';
-  const bezier = d.bezier ?? DEFAULT_DECAY.bezier;
+  const bezier = d.bezier ?? DEFAULT_ENVELOPE.bezier;
   return {
     mode,
-    endOffset: clamp01(d.endOffset ?? DEFAULT_DECAY.endOffset),
-    duration: clamp01(d.duration ?? DEFAULT_DECAY.duration),
+    duration: clamp01(d.duration ?? DEFAULT_ENVELOPE.duration),
     bezier: {
       x1: clamp01(bezier.x1),
       y1: Math.max(-0.5, Math.min(1.5, bezier.y1)),
@@ -143,7 +141,8 @@ export class Emitter extends Entity {
       velocitySpread: options.velocitySpread ?? { x: 1, y: 1, z: 1 },
       spawnDuration: options.spawnDuration ?? 0,
       atlas: options.atlas ?? { offset: { column: 0, row: 0 } },
-      decay: normalizeDecay(options.decay),
+      attack: normalizeEnvelope(options.attack),
+      decay: normalizeEnvelope(options.decay),
       randomStartRotation: options.randomStartRotation ?? false,
       drag: options.Cd === 0 ? 0 : (options.Cd * options.density * options.area) / (2 * options.mass),
       angularDrag: options.Cr === 0 ? 0 : (options.Cr * options.density * options.area) / (2 * options.momentOfInertia),
@@ -200,10 +199,10 @@ export class Emitter extends Entity {
       particleBatch.spawnDuration / 1000, // spawn duration in seconds
       particleBatch.spawnSize,
 
-      decayModeToShader(particleBatch.decay.mode),
-      particleBatch.decay.endOffset,
+      envelopeModeToShader(particleBatch.decay.mode),
       particleBatch.decay.duration,
       particleBatch.omega0,
+      0, // padding (std140: align decayBezier vec4)
 
       particleBatch.decay.bezier.x1,
       particleBatch.decay.bezier.y1,
@@ -251,8 +250,13 @@ export class Emitter extends Entity {
 
       particleBatch.swayStrength,
       particleBatch.swayTimeScale,
-      0,
-      0,
+      envelopeModeToShader(particleBatch.attack.mode),
+      particleBatch.attack.duration,
+
+      particleBatch.attack.bezier.x1,
+      particleBatch.attack.bezier.y1,
+      particleBatch.attack.bezier.x2,
+      particleBatch.attack.bezier.y2,
     ]);
 
     const batch = { particleBatch, id, data: particleBufferData, startTime };
