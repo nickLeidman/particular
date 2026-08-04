@@ -64,7 +64,16 @@ const batch: ParticleBatchOptions = {
   mass: 0.01,
   momentOfInertia: 10,
   atlas: { offset: { column: 0, row: 0 } },
-  scaleWithAge: 0,
+  attack: {
+    mode: 'none',
+    duration: 1,
+    bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
+  },
+  decay: {
+    mode: 'none',
+    duration: 1,
+    bezier: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 },
+  },
   spawnSize: 0,
 };
 
@@ -141,10 +150,24 @@ export interface ParticleBatchOptions {
     sweep?: { by: 'column' | 'row'; stepTime: number; stepCount: number };
   };
   /**
-   * Extra scale factor driven by particle age.
-   * @default 0
+   * Age-based size or opacity attack (fade-in from life start).
+   * Window: [0, duration]; cubic-bezier easing from 0→1.
    */
-  scaleWithAge: number;
+  attack?: {
+    mode: 'none' | 'size' | 'opacity';
+    duration: number;
+    bezier: { x1: number; y1: number; x2: number; y2: number };
+  };
+  /**
+   * Age-based size or opacity decay (fade-out toward end of life).
+   * Window: [1 − duration, 1]; cubic-bezier easing from 1→0.
+   * Independent of attack; size/opacity factors multiply when both apply.
+   */
+  decay?: {
+    mode: 'none' | 'size' | 'opacity';
+    duration: number;
+    bezier: { x1: number; y1: number; x2: number; y2: number };
+  };
   /** Diameter of the spawn disk in **pixels** */
   spawnSize: number;
   /**

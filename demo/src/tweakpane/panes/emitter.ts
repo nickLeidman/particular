@@ -27,6 +27,62 @@ export const createEmitterPane = (params: Params, context: TweakpaneUiContext): 
   useAlphaBlendingBinding.on('change', () => context.setUseAlphaBlending?.());
   bindings.push(useAlphaBlendingBinding);
 
+  const bloomFolder = emitterPane.addFolder({
+    title: 'Bloom',
+    expanded: false,
+  });
+
+  const bloomEnabledBinding = bloomFolder.addBinding(params.emitter.bloom, 'enabled', { label: 'Enabled' });
+  bloomEnabledBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomEnabledBinding);
+
+  const bloomThresholdBinding = bloomFolder.addBinding(params.emitter.bloom, 'threshold', {
+    label: 'Threshold',
+    min: 0,
+    max: 8,
+    step: 0.01,
+  });
+  bloomThresholdBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomThresholdBinding);
+
+  const bloomKneeBinding = bloomFolder.addBinding(params.emitter.bloom, 'knee', {
+    label: 'Soft knee',
+    min: 0,
+    max: 2,
+    step: 0.01,
+  });
+  bloomKneeBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomKneeBinding);
+
+  const bloomIntensityBinding = bloomFolder.addBinding(params.emitter.bloom, 'intensity', {
+    label: 'Intensity',
+    min: 0,
+    max: 5,
+    step: 0.01,
+  });
+  bloomIntensityBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomIntensityBinding);
+
+  const bloomRadiusBinding = bloomFolder.addBinding(params.emitter.bloom, 'radius', {
+    label: 'Radius',
+    min: 0,
+    max: 4,
+    step: 0.01,
+  });
+  bloomRadiusBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomRadiusBinding);
+
+  const bloomQualityBinding = bloomFolder.addBinding(params.emitter.bloom, 'quality', {
+    label: 'Quality',
+    options: {
+      Low: 'low',
+      Medium: 'medium',
+      High: 'high',
+    },
+  });
+  bloomQualityBinding.on('change', () => context.setBloom?.());
+  bindings.push(bloomQualityBinding);
+
   const textureFolder = emitterPane.addFolder({
     title: 'Texture',
     expanded: true,

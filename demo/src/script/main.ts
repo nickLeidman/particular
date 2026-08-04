@@ -1,4 +1,4 @@
-import type { BindingApi, TpChangeEvent } from '@tweakpane/core';
+import type { BindingApi } from '@tweakpane/core';
 import { createTweakpaneUi, type TweakpaneUiContext } from '../tweakpane';
 import { compileConfig } from './compileConfig';
 import { customObjectSlot } from './customObjectStorage';
@@ -25,6 +25,7 @@ const {
   bindings,
   rootPanes,
   setKaDisabled,
+  refreshEnvelopeUi,
   frameTimeCallbacks,
   setCustomTextureAvailable,
   setCustomObjectAvailable,
@@ -48,12 +49,14 @@ const app = createDemoApp(container, params, frameTimeCallbacks);
 
 function refreshAfterBulkParamsChange(): void {
   for (const b of bindings) b.refresh();
+  refreshEnvelopeUi();
   setKaDisabled(params.particle.useDiffuseAsAmbient);
   app.scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b);
   app.applyCamera();
   applyWorkspace();
   app.recreateEmitter();
   app.applyTextureChoice();
+  app.setBloom();
   app.updateBatches(compileConfig(params, 0, 0));
   app.engine.draw();
 }
@@ -93,6 +96,7 @@ uiContext.recreateEmitter = app.recreateEmitter;
 uiContext.setUseLighting = app.setUseLighting;
 uiContext.setLightColor = app.setLightColor;
 uiContext.setUseAlphaBlending = app.setUseAlphaBlending;
+uiContext.setBloom = app.setBloom;
 uiContext.applyTextureChoice = app.applyTextureChoice;
 uiContext.applyCamera = app.applyCamera;
 uiContext.updateBatches = () => app.updateBatches(compileConfig(params, 0, 0));
@@ -178,7 +182,7 @@ customObjectSlot.get().then((blob) => {
 app.engine.start();
 
 for (const pane of rootPanes) {
-  pane.on('change', (ev: TpChangeEvent) => {
+  pane.on('change', (ev) => {
     if (!ev.last) return;
     paramHistory.onUserCommit();
   });

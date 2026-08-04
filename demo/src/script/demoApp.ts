@@ -26,6 +26,7 @@ export type DemoApp = {
   setUseLighting: () => void;
   setLightColor: () => void;
   setUseAlphaBlending: () => void;
+  setBloom: () => void;
   applyCamera: () => void;
   /** Load a custom texture from a blob (e.g. user upload). Resolves when texture is ready. */
   setCustomTextureFromBlob: (blob: Blob) => Promise<void>;
@@ -65,6 +66,18 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     light,
   });
   engine.addScene(scene);
+
+  function setBloom(): void {
+    engine.setBloom({
+      enabled: params.emitter.bloom.enabled,
+      threshold: params.emitter.bloom.threshold,
+      knee: params.emitter.bloom.knee,
+      intensity: params.emitter.bloom.intensity,
+      radius: params.emitter.bloom.radius,
+      quality: params.emitter.bloom.quality,
+    });
+  }
+  setBloom();
 
   let particleTexture: WebGLTexture | null = null;
   let customTexture: WebGLTexture | null = null;
@@ -176,6 +189,7 @@ export function createDemoApp(container: HTMLDivElement, params: Params, frameTi
     setUseLighting: () => currentEmitter.setUseLighting(params.emitter.useLighting),
     setLightColor: () => scene.light.setColor(params.lighting.color.r, params.lighting.color.g, params.lighting.color.b),
     setUseAlphaBlending: () => currentEmitter.setUseAlphaBlending(params.emitter.useAlphaBlending),
+    setBloom,
     applyCamera,
     setCustomTextureFromBlob,
     clearCustomTexture,

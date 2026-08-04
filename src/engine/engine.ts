@@ -1,6 +1,9 @@
 import { GpuTimer } from '../gpuTimer/gpuTimer';
+import { BloomEffect, type BloomOptions } from '../effects/bloom/bloom';
 import type { Scene } from '../scene/scene';
 import { Vec2 } from '../vec2';
+
+export type { BloomOptions, BloomQuality } from '../effects/bloom/bloom';
 
 /**
  * Particular is a class that represents an object to handle ad draw particle effects on the screen.
@@ -29,6 +32,7 @@ export class Engine {
   private currentRenderTarget: 'A' | 'B' = 'A';
   private postProcessingPipeline: ((sourceTexture: WebGLTexture) => void)[] = [];
   private overlayCallbacks: (() => void)[] = [];
+  private bloomEffect: BloomEffect;
   timer: GpuTimer;
 
   private onBeforeDraw: (() => void) | undefined;
@@ -57,7 +61,7 @@ export class Engine {
       throw new Error('WebGL is not supported');
     }
     this.gl = gl;
-    const ext = gl.getExtension('EXT_color_buffer_float');
+    gl.getExtension('EXT_color_buffer_float');
 
     this.timer = new GpuTimer(this);
 
@@ -75,6 +79,7 @@ export class Engine {
     this.textureA = this.createFrameTexture();
     this.textureB = this.createFrameTexture();
     this.buffer = this.createFrameBuffer();
+    this.bloomEffect = new BloomEffect(this);
   }
 
   addScene(scene: Scene) {
@@ -85,7 +90,8 @@ export class Engine {
   draw() {
     // render the scene
     const [targetTexture] = this.getCurrentRenderTarget();
-    const hasPostProcessing = this.postProcessingPipeline.length > 0;
+    const hasBloom = this.bloomEffect.isEnabled();
+    const hasPostProcessing = this.postProcessingPipeline.length > 0 || hasBloom;
     if (hasPostProcessing) {
       this.attachRenderTarget(targetTexture, this.buffer);
     } else {
@@ -106,6 +112,20 @@ export class Engine {
 
     // render the post-processing
     if (hasPostProcessing) {
+      if (hasBloom) {
+        const sourceTexture = this.getCurrentRenderSource();
+        const isLastPass = this.postProcessingPipeline.length === 0;
+        if (!isLastPass) {
+          const [bloomTargetTexture] = this.getCurrentRenderTarget();
+          this.attachRenderTarget(bloomTargetTexture, this.buffer);
+        } else {
+          this.resetRenderTarget();
+        }
+        this.clear();
+        this.bloomEffect.draw(sourceTexture);
+        this.resetRenderTarget();
+        this.flipRenderTarget();
+      }
       this.postProcessing();
     }
 
@@ -182,6 +202,7 @@ export class Engine {
     this.textureA = this.createFrameTexture();
     this.textureB = this.createFrameTexture();
     this.buffer = this.createFrameBuffer();
+    this.bloomEffect.onResize();
 
     for (const scene of this.scenes) {
       scene.update();
@@ -208,6 +229,14 @@ export class Engine {
   }
 
   /* Post Processing */
+  setBloom(options: Partial<BloomOptions>): BloomOptions {
+    return this.bloomEffect.setOptions(options);
+  }
+
+  getBloom(): BloomOptions {
+    return this.bloomEffect.getOptions();
+  }
+
   attachPostProcessor(processor: (sourceTexture: WebGLTexture) => void) {
     this.postProcessingPipeline.push(processor);
   }
@@ -284,8 +313,9 @@ export class Engine {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, resolution.x, resolution.y, 0, gl.RGBA, gl.FLOAT, null);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
 

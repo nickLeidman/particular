@@ -24,7 +24,7 @@
     "build": "vite build --config vite.config.js",
     "build:watch": "vite build --watch --config vite.config.js",
     "prepare": "npm run build",
-    "dev": "npm -w demo run dev"
+    "dev": "npm run build && npm -w demo run dev"
   },
   "workspaces": [
     "demo"

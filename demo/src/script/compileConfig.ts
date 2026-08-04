@@ -32,7 +32,16 @@ export function compileConfig(params: Params, originX: number, originY: number):
       sweep: { by: a.sweepBy, stepTime: a.sweepStepTime, stepCount: a.sweepStepCount },
     },
     spawnSize: p.spawnSize,
-    scaleWithAge: p.scaleWithAge,
+    attack: {
+      mode: p.attack.mode,
+      duration: p.attack.duration,
+      bezier: { ...p.attack.bezier },
+    },
+    decay: {
+      mode: p.decay.mode,
+      duration: p.decay.duration,
+      bezier: { ...p.decay.bezier },
+    },
     swayStrength: p.swayStrength,
     swayTimeScale: p.swayTimeScale,
     Ka: p.useDiffuseAsAmbient ? { r: p.Kd.r, g: p.Kd.g, b: p.Kd.b } : { r: p.Ka.r, g: p.Ka.g, b: p.Ka.b },
